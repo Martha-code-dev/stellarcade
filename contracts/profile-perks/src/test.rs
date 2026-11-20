@@ -6,6 +6,18 @@ use super::*;
 use crate::storage::{set_catalog, set_user_state};
 
 #[test]
+fn test_init_and_already_initialized() {
+    let env = Env::default();
+    let contract_id = env.register(ProfilePerks, ());
+    let client = ProfilePerksClient::new(&env, &contract_id);
+    let admin = Address::generate(&env);
+
+    assert!(client.init(&admin).is_ok());
+    let reinit = client.try_init(&admin);
+    assert!(reinit.is_err());
+}
+
+#[test]
 fn test_active_perk_summary_unconfigured_catalog() {
     let env = Env::default();
     let contract_id = env.register(ProfilePerks, ());

@@ -1,6 +1,6 @@
 #![no_std]
 
-use soroban_sdk::{Address, Env, Map, Vec};
+use soroban_sdk::{Env, Vec};
 use crate::{DataKey, QuestCompletion, CompletionQueueSnapshot, RewardDelayAccessor};
 
 /// Storage utilities for quest ledger v2

@@ -10,7 +10,7 @@ mod storage;
 mod types;
 
 pub use types::*;
-use storage::{DataKey, PERSISTENT_BUMP};
+use storage::DataKey;
 
 use soroban_sdk::{contract, contracterror, contractimpl, Address, Env, Vec};
 
@@ -196,27 +196,28 @@ impl PrizeRouterV2Contract {
             .get(&DataKey::Queue)
             .unwrap_or(Vec::new(&env));
 
-        if index >= queue.len() {
-            return PayoutDelayInfo {
+        let entry = queue.get(index);
+        let current = env.ledger().sequence();
+        match entry {
+            Some(entry) => {
+                let releasable = current >= entry.release_after;
+                let ledgers_remaining = if releasable {
+                    0
+                } else {
+                    entry.release_after.saturating_sub(current)
+                };
+
+                PayoutDelayInfo {
+                    found: true,
+                    ledgers_remaining,
+                    releasable,
+                }
+            }
+            None => PayoutDelayInfo {
                 found: false,
                 ledgers_remaining: 0,
                 releasable: false,
-            };
-        }
-
-        let entry = queue.get_unchecked(index);
-        let current = env.ledger().sequence();
-        let releasable = current >= entry.release_after;
-        let ledgers_remaining = if releasable {
-            0
-        } else {
-            entry.release_after.saturating_sub(current)
-        };
-
-        PayoutDelayInfo {
-            found: true,
-            ledgers_remaining,
-            releasable,
+            },
         }
     }
 

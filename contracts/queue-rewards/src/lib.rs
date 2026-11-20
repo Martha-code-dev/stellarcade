@@ -7,7 +7,9 @@ mod types;
 mod test;
 
 use crate::storage::{get_config, get_user_state, set_config, set_user_state};
-use crate::types::{RewardConfig, RewardSnapshot, UserRewardState};
+use crate::types::{
+    OptionalRewardConfig, OptionalUserRewardState, RewardConfig, RewardSnapshot, UserRewardState,
+};
 use soroban_sdk::{contract, contracterror, contractevent, contractimpl, Address, Env};
 
 #[contracterror]
@@ -145,8 +147,8 @@ impl QueueRewards {
     /// Returns `None` for internal fields if the contract hasn't been initialized
     /// or the user has never interacted with the rewards system.
     pub fn get_reward_snapshot(env: Env, user: Address) -> RewardSnapshot {
-        let config = get_config(&env);
-        let user_state = get_user_state(&env, &user);
+        let config = get_config(&env).into();
+        let user_state = get_user_state(&env, &user).into();
 
         RewardSnapshot {
             config,

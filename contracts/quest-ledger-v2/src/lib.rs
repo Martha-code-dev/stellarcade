@@ -1,12 +1,12 @@
 #![no_std]
 
 use soroban_sdk::{
-    contract, contracterror, contractimpl, contracttype, symbol_short, Address, Env, Map, Symbol,
-    Vec,
+    contract, contracterror, contractimpl, contracttype, symbol_short, Address, Env, Symbol,
 };
 
 pub mod storage;
-pub mod test;
+#[cfg(test)]
+mod test;
 pub mod types;
 
 #[derive(Clone)]
@@ -359,62 +359,5 @@ impl QuestLedgerV2 {
             return Err(Error::Paused);
         }
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use soroban_sdk::{testutils::Address as _, Address, Env};
-
-    fn setup() -> (Env, Address, Address, Address) {
-        let env = Env::default();
-        let admin = Address::generate(&env);
-        let player = Address::generate(&env);
-        let token = Address::generate(&env);
-        (env, admin, player, token)
-    }
-
-    #[test]
-    fn test_init_success() {
-        let (env, admin, _, _) = setup();
-        let result = QuestLedgerV2::init(env, admin);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_complete_quest_success() {
-        let (env, admin, player, token) = setup();
-        QuestLedgerV2::init(env.clone(), admin).unwrap();
-
-        let result = QuestLedgerV2::complete_quest(env, player, 1, 100, token);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_get_completion_queue_snapshot() {
-        let (env, admin, player, token) = setup();
-        QuestLedgerV2::init(env.clone(), admin).unwrap();
-        QuestLedgerV2::complete_quest(env.clone(), player, 1, 100, token).unwrap();
-
-        let result = QuestLedgerV2::get_completion_queue_snapshot(env);
-        assert!(result.is_ok());
-        let snapshot = result.unwrap();
-        assert_eq!(snapshot.total_pending, 1);
-    }
-
-    #[test]
-    fn test_reward_delay_accessor() {
-        let (env, admin, _, _) = setup();
-        QuestLedgerV2::init(env.clone(), admin.clone()).unwrap();
-
-        QuestLedgerV2::set_reward_delay(env.clone(), admin, 1, 3600, symbol_short!("REVIEW"))
-            .unwrap();
-
-        let result = QuestLedgerV2::get_reward_delay_accessor(env, 1);
-        assert!(result.is_ok());
-        let accessor = result.unwrap();
-        assert_eq!(accessor.base_delay, 3600);
-        assert_eq!(accessor.delay_reason, symbol_short!("REVIEW"));
     }
 }

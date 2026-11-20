@@ -95,13 +95,16 @@ members = [
     "blind-auction",
     "prediction-market",
     "dutch-auction",
+    "prize-router-v2",
+    "profile-perks",
+    "quest-ledger-v2",
+    "queue-rewards",
 ]
 
 exclude = [
     "higher-lower",
     "challenge-ladder",
     "merch-redemption",
-    "profile-perks",
     # The crates below fail `cargo clippy --workspace -D warnings` (mostly
     # unused imports/dead code in unfinished stubs) or don't compile at all
     # under the wasm32v1-none target, surfaced when CI moved from a curated
@@ -139,10 +142,7 @@ exclude = [
     "map-voting",
     "mission-ledger",
     "player-rating",
-    "prize-router-v2",
     "quest-board",
-    "quest-ledger-v2",
-    "queue-rewards",
     "raffle-engine",
     "rank-rewards",
     "referral-quests",

@@ -3,6 +3,14 @@
 use super::*;
 use soroban_sdk::{testutils::Address as _, Address, Env, symbol_short};
 
+#[test]
+fn test_init_success() {
+    let env = Env::default();
+    let admin = Address::generate(&env);
+    let result = QuestLedgerV2::init(env, admin);
+    assert!(result.is_ok());
+}
+
 fn setup_contract() -> (Env, Address, Address, Address, Address) {
     let env = Env::default();
     let admin = Address::generate(&env);

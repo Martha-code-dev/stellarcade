@@ -29,12 +29,12 @@ Generated from `contracts/Cargo.toml` and `#[test]` attributes in each crate's
 result whenever membership or test attributes change;
 `python3 scripts/contract_inventory.py --check` fails when this block is stale.
 
-- Workspace members: **121**
-- Effectively excluded crates: **33** (a crate listed in both
+- Workspace members: **122**
+- Effectively excluded crates: **32** (a crate listed in both
   `members` and `exclude` is a member, not an exclusion)
 - Crate directories containing a `Cargo.toml`: **154**
 
-**Excluded crates** (33): `higher-lower`, `merch-redemption`, `profile-perks`, `achievements`, `contract-upgrade-timelock`, `creator-vaults`, `cross-chain-bridge`, `daily-challenges`, `daily-reward-emission`, `escrow-ledger`, `escrow-vault`, `fanout-distributor`, `governance-token`, `guild-progress`, `ladder-checkpoints`, `ladder-seasons`, `loot-crate`, `map-voting`, `mission-ledger`, `prize-router-v2`, `quest-ledger-v2`, `queue-rewards`, `reward-bridges`, `reward-unlocker`, `round-vouchers`, `season-rewards-vault`, `squad-match`, `squad-rewards`, `squad-roster`, `trivia-game`, `upgrade-mechanism`, `wallet-claims-v2`, `wallet-reserves`.
+**Excluded crates** (32): `higher-lower`, `merch-redemption`, `profile-perks`, `achievements`, `creator-vaults`, `cross-chain-bridge`, `daily-challenges`, `daily-reward-emission`, `escrow-ledger`, `escrow-vault`, `fanout-distributor`, `governance-token`, `guild-progress`, `ladder-checkpoints`, `ladder-seasons`, `loot-crate`, `map-voting`, `mission-ledger`, `prize-router-v2`, `quest-ledger-v2`, `queue-rewards`, `reward-bridges`, `reward-unlocker`, `round-vouchers`, `season-rewards-vault`, `squad-match`, `squad-rewards`, `squad-roster`, `trivia-game`, `upgrade-mechanism`, `wallet-claims-v2`, `wallet-reserves`.
 
 #### Test attributes by crate
 
@@ -72,7 +72,7 @@ result whenever membership or test attributes change;
 | `contract-metadata-registry` | member | 20 |
 | `contract-monitoring` | member | 9 |
 | `contract-role-registry` | member | 21 |
-| `contract-upgrade-timelock` | excluded | 9 |
+| `contract-upgrade-timelock` | member | 10 |
 | `creator-drops` | member | 9 |
 | `creator-escrow` | member | 5 |
 | `creator-royalties` | member | 11 |

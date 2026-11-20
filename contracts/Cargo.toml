@@ -25,6 +25,7 @@ members = [
     "challenge-ladder",
     "bonus-rotator",
     "coin-flip",
+    "contract-upgrade-timelock",
     "color-prediction",
     "comprehensive-test-suite",
     "contract-circuit-breaker",
@@ -137,7 +138,6 @@ exclude = [
     # explicitly in `members` above — they've been removed from `members`
     # too. Fix and re-add individually; don't bulk re-add.
     "achievements",
-    "contract-upgrade-timelock",
     "creator-vaults",
     "cross-chain-bridge",
     "daily-challenges",

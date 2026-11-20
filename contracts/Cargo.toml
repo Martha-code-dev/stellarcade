@@ -123,6 +123,9 @@ members = [
     "rank-rewards",
     "referral-quests",
     "reserve-auction",
+    "squad-rewards",
+    "squad-roster",
+    "wallet-reserves",
 ]
 
 exclude = [
@@ -160,12 +163,9 @@ exclude = [
     "round-vouchers",
     "season-rewards-vault",
     "squad-match",
-    "squad-rewards",
-    "squad-roster",
     "trivia-game",
     "upgrade-mechanism",
     "wallet-claims-v2",
-    "wallet-reserves",
 ]
 
 [profile.release]

@@ -1,8 +1,6 @@
-#![cfg(test)]
-
 use super::*;
 use soroban_sdk::{
-    testutils::Address as _,
+    testutils::{Address as _, Ledger as _},
     token::{StellarAssetClient, TokenClient},
     Address, BytesN, Env,
 };
@@ -852,4 +850,139 @@ fn test_cooldown_window_after_roll() {
     assert!(cw.in_cooldown);
     assert_eq!(cw.seconds_remaining, 30);
     assert_eq!(cw.cooldown_secs, 30);
+}
+
+// -------------------------------------------------------------------
+// 23. Stale roll cancellation & refund tests
+// -------------------------------------------------------------------
+
+const PLACED_AT: u32 = 1_000;
+
+fn place_stale_roll(env: &Env, s: &Setup, game_id: u64) -> Address {
+    env.ledger().set_sequence_number(PLACED_AT);
+    let player = Address::generate(env);
+    s.token_sac.mint(&player, &500i128);
+    commit_seed(env, &s.rng_client, &s.oracle, &seed(env, 0));
+    s.dice_client.roll(&player, &3u32, &100i128, &game_id);
+    player
+}
+
+#[test]
+fn test_place_roll_records_placed_at_ledger() {
+    let env = Env::default();
+    let s = setup(&env);
+    place_stale_roll(&env, &s, 1u64);
+
+    let roll = s.dice_client.get_roll(&1u64);
+    assert_eq!(roll.placed_at_ledger, PLACED_AT);
+    assert!(!roll.refunded);
+}
+
+#[test]
+fn test_cancel_roll_before_timeout_rejected() {
+    let env = Env::default();
+    let s = setup(&env);
+    let player = place_stale_roll(&env, &s, 1u64);
+
+    env.ledger()
+        .set_sequence_number(PLACED_AT + DEFAULT_REFUND_TIMEOUT_LEDGERS - 1);
+    let res = s.dice_client.try_cancel_stale_roll(&player, &1u64);
+    assert_eq!(res, Err(Ok(Error::RefundNotYetAvailable)));
+
+    let roll = s.dice_client.get_roll(&1u64);
+    assert!(!roll.resolved);
+    assert!(!roll.refunded);
+    assert_eq!(tc(&env, &s.token_addr).balance(&player), 400i128);
+}
+
+#[test]
+fn test_cancel_roll_after_timeout_refunds_wager() {
+    let env = Env::default();
+    let s = setup(&env);
+    let player = place_stale_roll(&env, &s, 1u64);
+
+    assert_eq!(tc(&env, &s.token_addr).balance(&player), 400i128);
+
+    env.ledger()
+        .set_sequence_number(PLACED_AT + DEFAULT_REFUND_TIMEOUT_LEDGERS);
+    s.dice_client.cancel_stale_roll(&player, &1u64);
+
+    assert_eq!(tc(&env, &s.token_addr).balance(&player), 500i128);
+
+    let roll = s.dice_client.get_roll(&1u64);
+    assert!(roll.resolved);
+    assert!(roll.refunded);
+    assert!(!roll.won);
+    assert_eq!(roll.payout, 0);
+}
+
+#[test]
+fn test_cancel_roll_non_player_rejected() {
+    let env = Env::default();
+    let s = setup(&env);
+    place_stale_roll(&env, &s, 1u64);
+    let stranger = Address::generate(&env);
+
+    env.ledger()
+        .set_sequence_number(PLACED_AT + DEFAULT_REFUND_TIMEOUT_LEDGERS);
+    let res = s.dice_client.try_cancel_stale_roll(&stranger, &1u64);
+    assert_eq!(res, Err(Ok(Error::NotAuthorized)));
+}
+
+#[test]
+fn test_no_refund_after_payout() {
+    let env = Env::default();
+    let s = setup(&env);
+    let player = place_stale_roll(&env, &s, 1u64);
+
+    // Fulfill and resolve
+    s.rng_client
+        .fulfill_random(&s.oracle, &s.dice_id, &1u64, &seed(&env, 0));
+    s.dice_client.resolve_roll(&1u64);
+
+    env.ledger()
+        .set_sequence_number(PLACED_AT + DEFAULT_REFUND_TIMEOUT_LEDGERS);
+    let res = s.dice_client.try_cancel_stale_roll(&player, &1u64);
+    assert_eq!(res, Err(Ok(Error::GameAlreadyResolved)));
+}
+
+#[test]
+fn test_no_payout_after_refund() {
+    let env = Env::default();
+    let s = setup(&env);
+    let player = place_stale_roll(&env, &s, 1u64);
+
+    env.ledger()
+        .set_sequence_number(PLACED_AT + DEFAULT_REFUND_TIMEOUT_LEDGERS);
+    s.dice_client.cancel_stale_roll(&player, &1u64);
+
+    // Try to fulfill and resolve after refund
+    s.rng_client
+        .fulfill_random(&s.oracle, &s.dice_id, &1u64, &seed(&env, 0));
+    let res = s.dice_client.try_resolve_roll(&1u64);
+    assert_eq!(res, Err(Ok(Error::GameRefunded)));
+}
+
+#[test]
+fn test_admin_set_refund_timeout_ledgers() {
+    let env = Env::default();
+    let s = setup(&env);
+
+    // Non-admin rejected
+    let stranger = Address::generate(&env);
+    let res = s.dice_client.try_set_refund_timeout_ledgers(&stranger, &50);
+    assert_eq!(res, Err(Ok(Error::NotAuthorized)));
+
+    // Admin updates timeout to 50 ledgers
+    s.dice_client.set_refund_timeout_ledgers(&s.admin, &50);
+
+    let player = place_stale_roll(&env, &s, 1u64);
+    env.ledger().set_sequence_number(PLACED_AT + 49);
+    assert_eq!(
+        s.dice_client.try_cancel_stale_roll(&player, &1u64),
+        Err(Ok(Error::RefundNotYetAvailable))
+    );
+
+    env.ledger().set_sequence_number(PLACED_AT + 50);
+    assert!(s.dice_client.try_cancel_stale_roll(&player, &1u64).is_ok());
 }

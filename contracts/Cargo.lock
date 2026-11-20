@@ -2548,6 +2548,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "stellarcade-squad-rewards"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellarcade-squad-roster"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "stellarcade-staking"
 version = "0.1.0"
 dependencies = [
@@ -2668,6 +2682,13 @@ dependencies = [
 
 [[package]]
 name = "stellarcade-voucher-minter"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellarcade-wallet-reserves"
 version = "0.1.0"
 dependencies = [
  "soroban-sdk",

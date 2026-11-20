@@ -1,7 +1,5 @@
-#![no_std]
-
-use soroban_sdk::{Address, Env, Map, Vec};
 use crate::{DataKey, ReserveAllocation};
+use soroban_sdk::{Address, Env, Vec};
 
 /// Storage utilities for wallet reserves
 pub struct Storage;
@@ -65,9 +63,17 @@ impl Storage {
 
     /// Extend TTL for global data
     pub fn extend_global_ttl(env: &Env) {
-        env.storage().persistent().extend_ttl(&DataKey::Admin, 100, 100);
-        env.storage().persistent().extend_ttl(&DataKey::Initialized, 100, 100);
-        env.storage().persistent().extend_ttl(&DataKey::Paused, 100, 100);
-        env.storage().persistent().extend_ttl(&DataKey::TotalReserves, 100, 100);
+        env.storage()
+            .persistent()
+            .extend_ttl(&DataKey::Admin, 100, 100);
+        env.storage()
+            .persistent()
+            .extend_ttl(&DataKey::Initialized, 100, 100);
+        env.storage()
+            .persistent()
+            .extend_ttl(&DataKey::Paused, 100, 100);
+        env.storage()
+            .persistent()
+            .extend_ttl(&DataKey::TotalReserves, 100, 100);
     }
 }

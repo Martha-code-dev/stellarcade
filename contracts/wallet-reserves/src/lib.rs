@@ -1,12 +1,12 @@
 #![no_std]
 
 use soroban_sdk::{
-    contract, contracterror, contractimpl, contracttype, symbol_short, Address, Env, Map, Symbol,
-    Vec,
+    contract, contracterror, contractimpl, contracttype, symbol_short, Address, Env, Symbol,
 };
 
 pub mod storage;
-pub mod test;
+#[cfg(test)]
+mod test;
 pub mod types;
 
 #[derive(Clone)]
@@ -20,7 +20,7 @@ pub enum DataKey {
     ReserveConfig,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[contracttype]
 pub struct ReserveAllocation {
     pub wallet: Address,
@@ -30,7 +30,7 @@ pub struct ReserveAllocation {
     pub last_updated: u64,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[contracttype]
 pub struct ReserveAllocationSummary {
     pub total_allocated: i128,
@@ -41,7 +41,7 @@ pub struct ReserveAllocationSummary {
     pub low_risk_wallets: u32,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[contracttype]
 pub struct DepletionRiskAssessment {
     pub wallet: Address,
@@ -272,94 +272,5 @@ impl WalletReserves {
             return Err(Error::Paused);
         }
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use soroban_sdk::{testutils::Address as _, Address, Env};
-
-    fn setup() -> (Env, Address, Address) {
-        let env = Env::default();
-        let admin = Address::generate(&env);
-        let wallet = Address::generate(&env);
-        (env, admin, wallet)
-    }
-
-    #[test]
-    fn test_init_success() {
-        let (env, admin, _) = setup();
-        let result = WalletReserves::init(env, admin);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_init_rejects_reinit() {
-        let (env, admin, _) = setup();
-        WalletReserves::init(env.clone(), admin.clone()).unwrap();
-        let result = WalletReserves::init(env, admin);
-        assert_eq!(result, Err(Error::AlreadyInitialized));
-    }
-
-    #[test]
-    fn test_allocate_reserves_success() {
-        let (env, admin, wallet) = setup();
-        WalletReserves::init(env.clone(), admin.clone()).unwrap();
-
-        let result = WalletReserves::allocate_reserves(env, admin, wallet, 1000, 100);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_allocate_reserves_invalid_amount() {
-        let (env, admin, wallet) = setup();
-        WalletReserves::init(env.clone(), admin.clone()).unwrap();
-
-        let result = WalletReserves::allocate_reserves(env, admin, wallet, 0, 100);
-        assert_eq!(result, Err(Error::InvalidAmount));
-    }
-
-    #[test]
-    fn test_get_reserve_allocation_summary() {
-        let (env, admin, wallet) = setup();
-        WalletReserves::init(env.clone(), admin.clone()).unwrap();
-        WalletReserves::allocate_reserves(env.clone(), admin, wallet, 1000, 100).unwrap();
-
-        let result = WalletReserves::get_reserve_allocation_summary(env);
-        assert!(result.is_ok());
-        let summary = result.unwrap();
-        assert_eq!(summary.total_allocated, 1000);
-    }
-
-    #[test]
-    fn test_get_depletion_risk_assessment() {
-        let (env, admin, wallet) = setup();
-        WalletReserves::init(env.clone(), admin.clone()).unwrap();
-        WalletReserves::allocate_reserves(env.clone(), admin, wallet.clone(), 1000, 100).unwrap();
-
-        let result = WalletReserves::get_depletion_risk_assessment(env, wallet);
-        assert!(result.is_ok());
-        let assessment = result.unwrap();
-        assert_eq!(assessment.risk_level, symbol_short!("LOW"));
-    }
-
-    #[test]
-    fn test_wallet_not_found() {
-        let (env, admin, wallet) = setup();
-        WalletReserves::init(env.clone(), admin).unwrap();
-
-        let result = WalletReserves::get_wallet_reserves(env, wallet);
-        assert_eq!(result, Err(Error::WalletNotFound));
-    }
-
-    #[test]
-    fn test_unauthorized_access() {
-        let (env, admin, wallet) = setup();
-        let unauthorized = Address::generate(&env);
-        WalletReserves::init(env.clone(), admin).unwrap();
-
-        let result = WalletReserves::allocate_reserves(env, unauthorized, wallet, 1000, 100);
-        assert_eq!(result, Err(Error::Unauthorized));
     }
 }

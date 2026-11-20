@@ -1,5 +1,3 @@
-#![cfg(test)]
-
 use super::*;
 use soroban_sdk::{testutils::Address as _, Address, Env};
 
@@ -20,11 +18,7 @@ fn setup() -> Setup {
 
     let client: SquadMatchClient<'static> = unsafe { core::mem::transmute(client) };
 
-    Setup {
-        env,
-        client,
-        admin,
-    }
+    Setup { env, client, admin }
 }
 
 #[test]
@@ -33,8 +27,16 @@ fn test_init_and_snapshot() {
     s.client.init(&s.admin, &2, &4);
 
     let snapshot = s.client.get_match_snapshot(&1);
-    assert!(snapshot.config.is_some());
-    assert!(snapshot.match_state.is_none());
+    assert_eq!(
+        snapshot.config,
+        OptionalMatchConfig::Some(MatchConfig {
+            admin: s.admin.clone(),
+            min_players_per_squad: 2,
+            max_squads: 4,
+            is_paused: false,
+        })
+    );
+    assert_eq!(snapshot.match_state, OptionalMatchState::None);
     assert!(!s.client.is_paused());
 }
 
@@ -49,7 +51,7 @@ fn test_create_match_and_query() {
     assert_eq!(s.client.get_match_status(&101), MatchStatus::Pending);
 
     let snapshot = s.client.get_match_snapshot(&101);
-    assert!(snapshot.match_state.is_some());
+    assert!(matches!(snapshot.match_state, OptionalMatchState::Some(_)));
 }
 
 #[test]
@@ -62,7 +64,7 @@ fn test_paused_system() {
 
     let user = Address::generate(&s.env);
     let result = s.client.try_create_match(&102, &user);
-    assert!(result.is_err());
+    assert_eq!(result, Err(Ok(Error::Paused)));
 }
 
 #[test]
@@ -80,6 +82,23 @@ fn test_uninitialized_reads() {
     let client = SquadMatchClient::new(&env, &contract_id);
 
     let snapshot = client.get_match_snapshot(&1);
-    assert!(snapshot.config.is_none());
+    assert_eq!(snapshot.config, OptionalMatchConfig::None);
+    assert_eq!(snapshot.match_state, OptionalMatchState::None);
     assert!(client.is_paused());
+}
+
+#[test]
+fn test_authorization_and_invariants() {
+    let s = setup();
+    s.client.init(&s.admin, &2, &4);
+
+    // Double initialization is rejected
+    let res = s.client.try_init(&s.admin, &2, &4);
+    assert_eq!(res, Err(Ok(Error::AlreadyInitialized)));
+
+    // Pause toggles correctly
+    s.client.set_pause(&true);
+    assert!(s.client.is_paused());
+    s.client.set_pause(&false);
+    assert!(!s.client.is_paused());
 }

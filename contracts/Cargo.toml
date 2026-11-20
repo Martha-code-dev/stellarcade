@@ -123,6 +123,10 @@ members = [
     "rank-rewards",
     "referral-quests",
     "reserve-auction",
+    "round-vouchers",
+    "squad-match",
+    "upgrade-mechanism",
+    "wallet-claims-v2",
 ]
 
 exclude = [
@@ -157,14 +161,10 @@ exclude = [
     "queue-rewards",
     "reward-bridges",
     "reward-unlocker",
-    "round-vouchers",
     "season-rewards-vault",
-    "squad-match",
     "squad-rewards",
     "squad-roster",
     "trivia-game",
-    "upgrade-mechanism",
-    "wallet-claims-v2",
     "wallet-reserves",
 ]
 

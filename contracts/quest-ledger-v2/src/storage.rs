@@ -1,6 +1,5 @@
-
+use crate::{CompletionQueueSnapshot, DataKey, QuestCompletion, RewardDelayAccessor};
 use soroban_sdk::{Env, Vec};
-use crate::{DataKey, QuestCompletion, CompletionQueueSnapshot, RewardDelayAccessor};
 
 /// Storage utilities for quest ledger v2
 pub struct Storage;
@@ -104,9 +103,17 @@ impl Storage {
 
     /// Extend TTL for global data
     pub fn extend_global_ttl(env: &Env) {
-        env.storage().persistent().extend_ttl(&DataKey::Admin, 100, 100);
-        env.storage().persistent().extend_ttl(&DataKey::Initialized, 100, 100);
-        env.storage().persistent().extend_ttl(&DataKey::Paused, 100, 100);
-        env.storage().persistent().extend_ttl(&DataKey::TotalQuests, 100, 100);
+        env.storage()
+            .persistent()
+            .extend_ttl(&DataKey::Admin, 100, 100);
+        env.storage()
+            .persistent()
+            .extend_ttl(&DataKey::Initialized, 100, 100);
+        env.storage()
+            .persistent()
+            .extend_ttl(&DataKey::Paused, 100, 100);
+        env.storage()
+            .persistent()
+            .extend_ttl(&DataKey::TotalQuests, 100, 100);
     }
 }

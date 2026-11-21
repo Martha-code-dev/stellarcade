@@ -1,4 +1,3 @@
-
 use soroban_sdk::{contracttype, Address, Symbol};
 
 /// Quest completion status types

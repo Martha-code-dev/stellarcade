@@ -9,8 +9,8 @@
 mod storage;
 mod types;
 
-pub use types::*;
 use storage::DataKey;
+pub use types::*;
 
 use soroban_sdk::{contract, contracterror, contractimpl, Address, Env, Vec};
 
@@ -23,11 +23,11 @@ use soroban_sdk::{contract, contracterror, contractimpl, Address, Env, Vec};
 #[repr(u32)]
 pub enum Error {
     AlreadyInitialized = 1,
-    NotInitialized     = 2,
-    NotAuthorized      = 3,
-    ContractPaused     = 4,
-    InvalidAmount      = 5,
-    IndexOutOfRange    = 6,
+    NotInitialized = 2,
+    NotAuthorized = 3,
+    ContractPaused = 4,
+    InvalidAmount = 5,
+    IndexOutOfRange = 6,
 }
 
 const DEFAULT_DELAY_LEDGERS: u32 = 100;
@@ -69,11 +69,7 @@ impl PrizeRouterV2Contract {
         Ok(())
     }
 
-    pub fn set_pressure_threshold(
-        env: Env,
-        admin: Address,
-        threshold: u32,
-    ) -> Result<(), Error> {
+    pub fn set_pressure_threshold(env: Env, admin: Address, threshold: u32) -> Result<(), Error> {
         require_admin(&env, &admin)?;
         env.storage()
             .instance()
@@ -265,10 +261,22 @@ impl PrizeRouterV2Contract {
 
         let admin: Option<Address> = env.storage().instance().get(&DataKey::Admin);
         let q_len = Self::queue_length(env.clone());
-        let delay = env.storage().instance().get(&DataKey::DelayLedgers).unwrap_or(DEFAULT_DELAY_LEDGERS);
-        let threshold = env.storage().instance().get(&DataKey::PressureThreshold).unwrap_or(DEFAULT_PRESSURE_THRESHOLD);
+        let delay = env
+            .storage()
+            .instance()
+            .get(&DataKey::DelayLedgers)
+            .unwrap_or(DEFAULT_DELAY_LEDGERS);
+        let threshold = env
+            .storage()
+            .instance()
+            .get(&DataKey::PressureThreshold)
+            .unwrap_or(DEFAULT_PRESSURE_THRESHOLD);
         let slippage = Self::fee_slippage(env.clone());
-        let is_paused = env.storage().instance().get(&DataKey::Paused).unwrap_or(false);
+        let is_paused = env
+            .storage()
+            .instance()
+            .get(&DataKey::Paused)
+            .unwrap_or(false);
 
         RoutingPathsSummary {
             is_initialized: true,

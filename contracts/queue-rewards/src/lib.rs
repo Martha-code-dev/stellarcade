@@ -7,9 +7,7 @@ mod types;
 mod test;
 
 use crate::storage::{get_config, get_user_state, set_config, set_user_state};
-use crate::types::{
-    RewardConfig, RewardSnapshot, UserRewardState,
-};
+use crate::types::{RewardConfig, RewardSnapshot, UserRewardState};
 use soroban_sdk::{contract, contracterror, contractevent, contractimpl, Address, Env};
 
 #[contracterror]

@@ -206,6 +206,10 @@ Example response:
 
 - **GET** `/api/users/profile` - Get the current user's profile.
 - **POST** `/api/users/create` - Create a new user account linked to a Stellar address.
+- **POST** `/api/users/update` - Update a profile's username or linked-account fields.
+
+First login reserves the wallet only, so no shared default username is assigned. Usernames are reserved case-insensitively while display spelling is preserved. A name already held by another wallet returns HTTP 409 with code `USERNAME_TAKEN`, including case-only differences.
+
 - **GET** `/api/users/balance` - Get the user's on-platform balance.
 - **GET** `/api/users/audit-logs` - Retrieve audit logs with optional filtering.
   - Query: `actor` (optional exact actor id), `action` (optional exact action), `limit` (optional positive integer, default `50`).

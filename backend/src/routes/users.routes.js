@@ -197,6 +197,14 @@ const routeDocs = [
           },
         },
       },
+      409: {
+        description: 'Username is already reserved by another wallet',
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/ErrorEnvelope' },
+          },
+        },
+      },
       500: {
         description: 'Unexpected server error',
         content: {
@@ -256,6 +264,14 @@ const routeDocs = [
       },
       404: {
         description: 'No existing profile for that wallet address — use /create first',
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/ErrorEnvelope' },
+          },
+        },
+      },
+      409: {
+        description: 'Username is already reserved by another wallet',
         content: {
           'application/json': {
             schema: { $ref: '#/components/schemas/ErrorEnvelope' },

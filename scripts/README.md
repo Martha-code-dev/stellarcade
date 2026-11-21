@@ -87,7 +87,21 @@ CI runs it from `.github/workflows/testnet-smoke.yml` nightly and on
 `workflow_dispatch` (not on pull requests). A failed step fails the job.
 
 
-The deployment script now builds, deploys, authorizes, initializes, and funds dice-roll alongside coin-flip, and writes contracts.diceRoll plus the dice-roll environment variable names to the deployment output.
+The deployment script builds, deploys, authorizes, initializes, and funds dice-roll alongside coin-flip. It writes `contracts.diceRoll` and the dice-roll environment variable names to the deployment output.
 
+## Verify the testnet manifest
 
-The deployment script now builds, deploys, authorizes, initializes, and funds dice-roll alongside coin-flip, and writes contracts.diceRoll plus the dice-roll environment variable names to the deployment output.
+Run the read-only verifier before trusting or publishing a testnet address:
+
+```bash
+node scripts/verify-deployment-config.mjs
+```
+
+The verifier checks that the manifest and README agree, that `contracts.diceRoll` stays empty until a live address is verified, and that every configured ID has a readable contract spec on testnet. It never submits a transaction.
+
+If an address is missing, expired, or restored incorrectly:
+
+1. Run `stellar contract info interface --id <ADDRESS> --network testnet` to confirm the address is live.
+2. Check the contract instance TTL and restore or extend it with `stellar contract restore` or `stellar contract extend` if the spec cannot be read because of expiry.
+3. For a contract that no longer exists, deploy with `scripts/deploy-contracts.sh --fresh --build`, verify the new ID on chain, then update `deployments/testnet.json`, `README.md`, and the frontend or backend environment variables together.
+4. For dice-roll, leave `contracts.diceRoll` empty until step 1 succeeds for the deployed ID.

@@ -9,8 +9,8 @@
 mod storage;
 mod types;
 
-pub use types::*;
 use storage::{DataKey, PERSISTENT_BUMP};
+pub use types::*;
 
 use soroban_sdk::{contract, contracterror, contractimpl, Address, Env, Symbol, Vec};
 
@@ -22,15 +22,15 @@ use soroban_sdk::{contract, contracterror, contractimpl, Address, Env, Symbol, V
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(u32)]
 pub enum Error {
-    AlreadyInitialized  = 1,
-    NotInitialized      = 2,
-    NotAuthorized       = 3,
-    ChallengeNotFound   = 4,
-    AlreadyCompleted    = 5,
-    AlreadyClaimed      = 6,
-    ChallengeExpired    = 7,
-    ChallengeInactive   = 8,
-    ContractPaused      = 9,
+    AlreadyInitialized = 1,
+    NotInitialized = 2,
+    NotAuthorized = 3,
+    ChallengeNotFound = 4,
+    AlreadyCompleted = 5,
+    AlreadyClaimed = 6,
+    ChallengeExpired = 7,
+    ChallengeInactive = 8,
+    ContractPaused = 9,
 }
 
 // ---------------------------------------------------------------------------
@@ -230,11 +230,7 @@ impl DailyChallengesContract {
     ///
     /// Zero-state: `configured` false when no interval has been set.
     pub fn refresh_window(env: Env) -> RefreshWindowInfo {
-        let interval_ledgers: u32 = match env
-            .storage()
-            .instance()
-            .get(&DataKey::RefreshInterval)
-        {
+        let interval_ledgers: u32 = match env.storage().instance().get(&DataKey::RefreshInterval) {
             None => {
                 return RefreshWindowInfo {
                     configured: false,
@@ -307,8 +303,10 @@ impl DailyChallengesContract {
         for i in 0..total_challenges {
             if let Some(id) = ids.get(i) {
                 let comp_key = DataKey::Completion(id, player.clone());
-                if let Some((_, claimed)) =
-                    env.storage().persistent().get::<DataKey, (u32, bool)>(&comp_key)
+                if let Some((_, claimed)) = env
+                    .storage()
+                    .persistent()
+                    .get::<DataKey, (u32, bool)>(&comp_key)
                 {
                     completed_count += 1;
                     if claimed {
@@ -342,11 +340,7 @@ impl DailyChallengesContract {
     /// refresh interval has been set. `reset_due = true` once the refresh is
     /// overdue.
     pub fn reset_delay(env: Env) -> ResetDelay {
-        let interval_ledgers: u32 = match env
-            .storage()
-            .instance()
-            .get(&DataKey::RefreshInterval)
-        {
+        let interval_ledgers: u32 = match env.storage().instance().get(&DataKey::RefreshInterval) {
             None => {
                 return ResetDelay {
                     configured: false,

@@ -192,6 +192,48 @@ describe('POST /users/create', () => {
     expect(User.create).not.toHaveBeenCalled();
   });
 
+  test('completes a wallet row reserved at login without inserting another profile', async () => {
+    User.findByWallet.mockResolvedValue({ ...DB_USER, username: null });
+    User.updateByWallet.mockResolvedValue(DB_USER);
+
+    const res = await request(app)
+      .post('/users/create')
+      .set('Authorization', authHeader())
+      .send({
+        walletAddress: 'GAG2RBIWVIWBZAL6LOBLIL5WXO3OPWMD7I2SAJTCOEWE3VPGIEXUZWN7',
+        username: 'xavier',
+        ageConfirmed: true,
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.username).toBe('alice');
+    expect(User.create).not.toHaveBeenCalled();
+    expect(User.updateByWallet).toHaveBeenCalledWith(
+      'GAG2RBIWVIWBZAL6LOBLIL5WXO3OPWMD7I2SAJTCOEWE3VPGIEXUZWN7',
+      { username: 'xavier', age_confirmed_at: expect.any(Date) }
+    );
+  });
+
+  test('returns the stable username conflict from the reservation layer', async () => {
+    User.findByWallet.mockResolvedValue(null);
+    const conflict = Object.assign(new Error('That username is already taken.'), {
+      statusCode: 409,
+      code: 'USERNAME_TAKEN',
+    });
+    User.create.mockRejectedValue(conflict);
+
+    const res = await request(app)
+      .post('/users/create')
+      .set('Authorization', authHeader())
+      .send({
+        walletAddress: 'GAG2RBIWVIWBZAL6LOBLIL5WXO3OPWMD7I2SAJTCOEWE3VPGIEXUZWN7',
+        username: 'xavier',
+      });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('USERNAME_TAKEN');
+  });
+
   test('records the age confirmation on a wallet that already has a profile, instead of dropping it', async () => {
     User.findByWallet.mockResolvedValue(DB_USER);
     User.updateByWallet.mockResolvedValue({
@@ -318,6 +360,27 @@ describe('POST /users/update', () => {
       'GAG2RBIWVIWBZAL6LOBLIL5WXO3OPWMD7I2SAJTCOEWE3VPGIEXUZWN7',
       { username: 'alice2' }
     );
+  });
+
+  test('returns the stable username conflict when renaming to a held name', async () => {
+    User.findByWallet.mockResolvedValue(DB_USER);
+    User.updateByWallet.mockRejectedValue(
+      Object.assign(new Error('That username is already taken.'), {
+        statusCode: 409,
+        code: 'USERNAME_TAKEN',
+      })
+    );
+
+    const res = await request(app)
+      .post('/users/update')
+      .set('Authorization', authHeader())
+      .send({
+        walletAddress: 'GAG2RBIWVIWBZAL6LOBLIL5WXO3OPWMD7I2SAJTCOEWE3VPGIEXUZWN7',
+        username: 'ALICE2',
+      });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('USERNAME_TAKEN');
   });
 
   test('records the age confirmation on a profile that predates the age gate', async () => {

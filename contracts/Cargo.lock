@@ -1864,6 +1864,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "stellarcade-achievements"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "stellarcade-affiliate-ledger"
 version = "0.1.0"
 dependencies = [
@@ -2094,6 +2101,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "stellarcade-creator-vaults"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellarcade-cross-chain-bridge"
+version = "0.1.0"
+dependencies = [
+ "ed25519-dalek",
+ "rand",
+ "soroban-sdk",
+ "stellarcade-shared",
+]
+
+[[package]]
 name = "stellarcade-cross-contract-call-guard"
 version = "0.1.0"
 dependencies = [
@@ -2102,6 +2126,13 @@ dependencies = [
 
 [[package]]
 name = "stellarcade-cross-contract-handler"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellarcade-daily-challenges"
 version = "0.1.0"
 dependencies = [
  "soroban-sdk",

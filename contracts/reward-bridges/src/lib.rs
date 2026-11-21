@@ -3,9 +3,9 @@
 use soroban_sdk::{contract, contractimpl, Address, Env, Vec};
 
 mod storage;
-mod types;
 #[cfg(test)]
 mod test;
+mod types;
 
 pub use types::{BridgeEntry, BridgeQueueSummary, SettlementGap};
 
@@ -86,11 +86,7 @@ impl RewardBridges {
         }
         SettlementGap {
             has_pending: true,
-            seconds_until_next_settlement: if earliest_settle_after > now {
-                earliest_settle_after - now
-            } else {
-                0
-            },
+            seconds_until_next_settlement: earliest_settle_after.saturating_sub(now),
             next_entry_id,
         }
     }

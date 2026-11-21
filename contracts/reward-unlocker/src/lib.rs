@@ -22,7 +22,7 @@ use storage::{
     get_recipient_queue_ids, get_recipient_total_queued, set_queued_reward,
     set_recipient_queue_ids, set_recipient_total_queued,
 };
-use types::{CooldownGapInfo, DataKey, QueueStatus, QueuedReward, UnlockQueueSummary};
+use types::{CooldownGapInfo, DataKey, QueuedReward, UnlockQueueSummary};
 
 // ──────────────────────────────────────────────────────────────
 // Events
@@ -93,7 +93,7 @@ impl RewardUnlocker {
             panic!("Invalid cooldown");
         }
 
-        let current_ledger = env.ledger().sequence() as u32;
+        let current_ledger = env.ledger().sequence();
 
         // Get next queue ID
         let queue_id: u32 = env
@@ -146,11 +146,10 @@ impl RewardUnlocker {
         recipient.require_auth();
 
         if let Some(queued_reward) = get_queued_reward(&env, &recipient, queue_id) {
-            let current_ledger = env.ledger().sequence() as u32;
+            let current_ledger = env.ledger().sequence();
             let unlock_ledger = queued_reward
                 .queued_ledger
-                .checked_add(queued_reward.cooldown_ledgers)
-                .unwrap_or(u32::MAX);
+                .saturating_add(queued_reward.cooldown_ledgers);
 
             if current_ledger < unlock_ledger {
                 panic!("Reward still in cooldown");
@@ -164,7 +163,7 @@ impl RewardUnlocker {
                 .remove(&DataKey::QueuedReward(recipient.clone(), queue_id));
 
             // Remove from queue list
-            let mut queue_ids = get_recipient_queue_ids(&env, &recipient);
+            let queue_ids = get_recipient_queue_ids(&env, &recipient);
             let mut new_ids = Vec::new(&env);
             for id in queue_ids.iter() {
                 if id != queue_id {

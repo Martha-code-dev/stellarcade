@@ -2495,6 +2495,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "stellarcade-reward-bridges"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "stellarcade-reward-distribution"
 version = "0.1.0"
 dependencies = [
@@ -2516,6 +2523,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "stellarcade-reward-unlocker"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "stellarcade-reward-vesting"
 version = "0.1.0"
 dependencies = [
@@ -2531,6 +2545,13 @@ dependencies = [
 
 [[package]]
 name = "stellarcade-round-finalizer"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellarcade-season-rewards-vault"
 version = "0.1.0"
 dependencies = [
  "soroban-sdk",
@@ -2671,6 +2692,13 @@ dependencies = [
 
 [[package]]
 name = "stellarcade-treasury-safeguard"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellarcade-trivia-game"
 version = "0.1.0"
 dependencies = [
  "soroban-sdk",

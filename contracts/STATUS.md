@@ -29,12 +29,12 @@ Generated from `contracts/Cargo.toml` and `#[test]` attributes in each crate's
 result whenever membership or test attributes change;
 `python3 scripts/contract_inventory.py --check` fails when this block is stale.
 
-- Workspace members: **125**
-- Effectively excluded crates: **29** (a crate listed in both
+- Workspace members: **129**
+- Effectively excluded crates: **25** (a crate listed in both
   `members` and `exclude` is a member, not an exclusion)
 - Crate directories containing a `Cargo.toml`: **154**
 
-**Excluded crates** (29): `higher-lower`, `merch-redemption`, `profile-perks`, `achievements`, `contract-upgrade-timelock`, `daily-reward-emission`, `escrow-ledger`, `escrow-vault`, `fanout-distributor`, `guild-progress`, `ladder-checkpoints`, `ladder-seasons`, `loot-crate`, `map-voting`, `mission-ledger`, `prize-router-v2`, `quest-ledger-v2`, `queue-rewards`, `reward-bridges`, `reward-unlocker`, `round-vouchers`, `season-rewards-vault`, `squad-match`, `squad-rewards`, `squad-roster`, `trivia-game`, `upgrade-mechanism`, `wallet-claims-v2`, `wallet-reserves`.
+**Excluded crates** (25): `higher-lower`, `merch-redemption`, `profile-perks`, `contract-upgrade-timelock`, `daily-reward-emission`, `escrow-ledger`, `escrow-vault`, `fanout-distributor`, `guild-progress`, `ladder-checkpoints`, `ladder-seasons`, `loot-crate`, `map-voting`, `mission-ledger`, `prize-router-v2`, `quest-ledger-v2`, `queue-rewards`, `reward-bridges`, `reward-unlocker`, `round-vouchers`, `season-rewards-vault`, `squad-match`, `trivia-game`, `upgrade-mechanism`, `wallet-claims-v2`.
 
 #### Test attributes by crate
 
@@ -42,7 +42,7 @@ result whenever membership or test attributes change;
 | --- | --- | ---: |
 | `access-control` | member | 11 |
 | `achievement-badge` | member | 24 |
-| `achievements` | excluded | 7 |
+| `achievements` | member | 9 |
 | `affiliate-ledger` | member | 6 |
 | `ai-generated-game` | member | 5 |
 | `anti-cheat-bounties` | member | 19 |
@@ -84,7 +84,7 @@ result whenever membership or test attributes change;
 | `daily-reward-emission` | excluded | 3 |
 | `daily-trivia` | member | 9 |
 | `deployment-scripts` | member | 3 |
-| `dice-roll` | member | 34 |
+| `dice-roll` | member | 41 |
 | `duel-engine` | member | 4 |
 | `dutch-auction` | member | 11 |
 | `dynamic-fee-policy` | member | 9 |
@@ -133,7 +133,7 @@ result whenever membership or test attributes change;
 | `prediction-market` | member | 3 |
 | `price-prediction` | member | 37 |
 | `prize-ledger-v2` | member | 5 |
-| `prize-pool` | member | 34 |
+| `prize-pool` | member | 35 |
 | `prize-router-v2` | excluded | 7 |
 | `prize-streamer` | member | 8 |
 | `profile-perks` | excluded | 3 |
@@ -148,13 +148,13 @@ result whenever membership or test attributes change;
 | `referral-system` | member | 27 |
 | `reserve-auction` | member | 6 |
 | `reserve-manager` | member | 9 |
-| `revenue-split` | member | 7 |
+| `revenue-split` | member | 8 |
 | `reward-bridges` | excluded | 4 |
 | `reward-distribution` | member | 21 |
 | `reward-router` | member | 6 |
 | `reward-stream` | member | 8 |
 | `reward-unlocker` | excluded | 13 |
-| `reward-vesting` | member | 19 |
+| `reward-vesting` | member | 20 |
 | `rock-paper-scissors` | member | 14 |
 | `round-finalizer` | member | 6 |
 | `round-vouchers` | excluded | 2 |
@@ -167,9 +167,9 @@ result whenever membership or test attributes change;
 | `sponsor-pool` | member | 10 |
 | `sponsorship-ledger` | member | 11 |
 | `squad-match` | excluded | 5 |
-| `squad-rewards` | excluded | 3 |
-| `squad-roster` | excluded | 5 |
-| `staking` | member | 10 |
+| `squad-rewards` | member | 3 |
+| `squad-roster` | member | 5 |
+| `staking` | member | 11 |
 | `staking-rewards` | member | 6 |
 | `streak-bonus` | member | 21 |
 | `streak-ladder` | member | 8 |
@@ -192,7 +192,7 @@ result whenever membership or test attributes change;
 | `voucher-escrow` | member | 4 |
 | `voucher-minter` | member | 9 |
 | `wallet-claims-v2` | excluded | 2 |
-| `wallet-reserves` | excluded | 16 |
+| `wallet-reserves` | member | 10 |
 | `wordle-clone` | member | 22 |
 
 > **A test count is not a security sign-off.** These numbers count `#[test]`

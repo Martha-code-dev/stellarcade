@@ -29,12 +29,12 @@ Generated from `contracts/Cargo.toml` and `#[test]` attributes in each crate's
 result whenever membership or test attributes change;
 `python3 scripts/contract_inventory.py --check` fails when this block is stale.
 
-- Workspace members: **123**
-- Effectively excluded crates: **31** (a crate listed in both
+- Workspace members: **127**
+- Effectively excluded crates: **27** (a crate listed in both
   `members` and `exclude` is a member, not an exclusion)
 - Crate directories containing a `Cargo.toml`: **154**
 
-**Excluded crates** (31): `higher-lower`, `merch-redemption`, `profile-perks`, `creator-vaults`, `cross-chain-bridge`, `daily-challenges`, `daily-reward-emission`, `escrow-ledger`, `escrow-vault`, `fanout-distributor`, `governance-token`, `guild-progress`, `ladder-checkpoints`, `ladder-seasons`, `loot-crate`, `map-voting`, `mission-ledger`, `prize-router-v2`, `quest-ledger-v2`, `queue-rewards`, `reward-bridges`, `reward-unlocker`, `round-vouchers`, `season-rewards-vault`, `squad-match`, `squad-rewards`, `squad-roster`, `trivia-game`, `upgrade-mechanism`, `wallet-claims-v2`, `wallet-reserves`.
+**Excluded crates** (27): `higher-lower`, `merch-redemption`, `profile-perks`, `daily-reward-emission`, `escrow-ledger`, `escrow-vault`, `fanout-distributor`, `guild-progress`, `ladder-checkpoints`, `ladder-seasons`, `loot-crate`, `map-voting`, `mission-ledger`, `prize-router-v2`, `quest-ledger-v2`, `queue-rewards`, `reward-bridges`, `reward-unlocker`, `round-vouchers`, `season-rewards-vault`, `squad-match`, `squad-rewards`, `squad-roster`, `trivia-game`, `upgrade-mechanism`, `wallet-claims-v2`, `wallet-reserves`.
 
 #### Test attributes by crate
 
@@ -76,11 +76,11 @@ result whenever membership or test attributes change;
 | `creator-drops` | member | 9 |
 | `creator-escrow` | member | 5 |
 | `creator-royalties` | member | 11 |
-| `creator-vaults` | excluded | 11 |
-| `cross-chain-bridge` | excluded | 10 |
+| `creator-vaults` | member | 12 |
+| `cross-chain-bridge` | member | 13 |
 | `cross-contract-call-guard` | member | 5 |
 | `cross-contract-handler` | member | 26 |
-| `daily-challenges` | excluded | 10 |
+| `daily-challenges` | member | 15 |
 | `daily-reward-emission` | excluded | 3 |
 | `daily-trivia` | member | 9 |
 | `deployment-scripts` | member | 3 |
@@ -100,7 +100,7 @@ result whenever membership or test attributes change;
 | `fee-shield` | member | 4 |
 | `gas-optimization-analysis` | member | 2 |
 | `governance` | member | 29 |
-| `governance-token` | excluded | 12 |
+| `governance-token` | member | 13 |
 | `grant-ledger` | member | 9 |
 | `guild-progress` | excluded | 17 |
 | `guild-season` | member | 6 |

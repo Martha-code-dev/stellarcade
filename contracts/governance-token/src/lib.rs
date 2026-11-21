@@ -289,7 +289,7 @@ impl GovernanceToken {
             return Vec::new(&env);
         }
 
-        let start = if len > cap { len - cap } else { 0 };
+        let start = len.saturating_sub(cap);
         let mut result: Vec<Checkpoint> = Vec::new(&env);
         for i in start..len {
             result.push_back(history.get(i as u32).unwrap());
@@ -558,5 +558,32 @@ mod test {
         let (env, _admin, _cid, client) = setup();
         let unknown = Address::generate(&env);
         assert!(client.checkpoint_at_ledger(&unknown, &100).is_none());
+    }
+
+    /// Regression for the `saturating_sub` window in `checkpoint_history`:
+    /// the result is always the newest `limit` entries, oldest first, and a
+    /// `limit` at or above the stored length returns everything.
+    #[test]
+    fn test_checkpoint_history_returns_newest_window() {
+        let (env, _admin, _cid, client) = setup();
+        let user = Address::generate(&env);
+
+        for (ledger, amount) in [(1u32, 10i128), (2, 20), (3, 30)] {
+            env.ledger().with_mut(|li| li.sequence_number = ledger);
+            client.mint(&user, &amount);
+        }
+
+        let balances = |limit: u32| -> Vec<i128> {
+            let mut out: Vec<i128> = Vec::new(&env);
+            for c in client.checkpoint_history(&user, &limit).iter() {
+                out.push_back(c.balance);
+            }
+            out
+        };
+        assert_eq!(balances(0), Vec::<i128>::new(&env));
+        assert_eq!(balances(1), soroban_sdk::vec![&env, 60i128]);
+        assert_eq!(balances(2), soroban_sdk::vec![&env, 30i128, 60]);
+        assert_eq!(balances(3), soroban_sdk::vec![&env, 10i128, 30, 60]);
+        assert_eq!(balances(100), soroban_sdk::vec![&env, 10i128, 30, 60]);
     }
 }

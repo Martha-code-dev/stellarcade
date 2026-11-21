@@ -1,5 +1,5 @@
-use soroban_sdk::{contracttype, Env};
 use crate::types::{MatchConfig, MatchState};
+use soroban_sdk::{contracttype, Env};
 
 #[contracttype]
 #[derive(Clone)]
@@ -23,7 +23,11 @@ pub fn get_match(env: &Env, match_id: u32) -> Option<MatchState> {
     let key = DataKey::Match(match_id);
     let state = env.storage().persistent().get(&key);
     if state.is_some() {
-        env.storage().persistent().extend_ttl(&key, PERSISTENT_BUMP_THRESHOLD, PERSISTENT_BUMP_LEDGERS);
+        env.storage().persistent().extend_ttl(
+            &key,
+            PERSISTENT_BUMP_THRESHOLD,
+            PERSISTENT_BUMP_LEDGERS,
+        );
     }
     state
 }
@@ -31,5 +35,7 @@ pub fn get_match(env: &Env, match_id: u32) -> Option<MatchState> {
 pub fn set_match(env: &Env, match_id: u32, state: &MatchState) {
     let key = DataKey::Match(match_id);
     env.storage().persistent().set(&key, state);
-    env.storage().persistent().extend_ttl(&key, PERSISTENT_BUMP_THRESHOLD, PERSISTENT_BUMP_LEDGERS);
+    env.storage()
+        .persistent()
+        .extend_ttl(&key, PERSISTENT_BUMP_THRESHOLD, PERSISTENT_BUMP_LEDGERS);
 }

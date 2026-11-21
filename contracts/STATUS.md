@@ -29,12 +29,12 @@ Generated from `contracts/Cargo.toml` and `#[test]` attributes in each crate's
 result whenever membership or test attributes change;
 `python3 scripts/contract_inventory.py --check` fails when this block is stale.
 
-- Workspace members: **134**
-- Effectively excluded crates: **20** (a crate listed in both
+- Workspace members: **138**
+- Effectively excluded crates: **16** (a crate listed in both
   `members` and `exclude` is a member, not an exclusion)
 - Crate directories containing a `Cargo.toml`: **154**
 
-**Excluded crates** (20): `higher-lower`, `merch-redemption`, `profile-perks`, `daily-reward-emission`, `escrow-ledger`, `escrow-vault`, `fanout-distributor`, `guild-progress`, `ladder-checkpoints`, `ladder-seasons`, `loot-crate`, `map-voting`, `mission-ledger`, `prize-router-v2`, `quest-ledger-v2`, `queue-rewards`, `round-vouchers`, `squad-match`, `upgrade-mechanism`, `wallet-claims-v2`.
+**Excluded crates** (16): `higher-lower`, `merch-redemption`, `profile-perks`, `daily-reward-emission`, `escrow-ledger`, `escrow-vault`, `fanout-distributor`, `guild-progress`, `ladder-checkpoints`, `ladder-seasons`, `loot-crate`, `map-voting`, `mission-ledger`, `prize-router-v2`, `quest-ledger-v2`, `queue-rewards`.
 
 #### Test attributes by crate
 
@@ -157,7 +157,7 @@ result whenever membership or test attributes change;
 | `reward-vesting` | member | 20 |
 | `rock-paper-scissors` | member | 14 |
 | `round-finalizer` | member | 6 |
-| `round-vouchers` | excluded | 2 |
+| `round-vouchers` | member | 3 |
 | `season-rewards-vault` | member | 12 |
 | `session-nonce-manager` | member | 14 |
 | `settlement-queue` | member | 17 |
@@ -166,7 +166,7 @@ result whenever membership or test attributes change;
 | `sponsor-lockbox` | member | 2 |
 | `sponsor-pool` | member | 10 |
 | `sponsorship-ledger` | member | 11 |
-| `squad-match` | excluded | 5 |
+| `squad-match` | member | 6 |
 | `squad-rewards` | member | 3 |
 | `squad-roster` | member | 5 |
 | `staking` | member | 11 |
@@ -184,14 +184,14 @@ result whenever membership or test attributes change;
 | `treasury-allocation` | member | 14 |
 | `treasury-safeguard` | member | 9 |
 | `trivia-game` | member | 3 |
-| `upgrade-mechanism` | excluded | 8 |
+| `upgrade-mechanism` | member | 8 |
 | `vault-claims` | member | 7 |
 | `vault-routing` | member | 2 |
 | `vip-subscription` | member | 24 |
 | `vote-escrow` | member | 3 |
 | `voucher-escrow` | member | 4 |
 | `voucher-minter` | member | 9 |
-| `wallet-claims-v2` | excluded | 2 |
+| `wallet-claims-v2` | member | 3 |
 | `wallet-reserves` | member | 10 |
 | `wordle-clone` | member | 22 |
 

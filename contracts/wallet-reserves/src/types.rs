@@ -1,5 +1,3 @@
-#![no_std]
-
 use soroban_sdk::{contracttype, Address, Symbol};
 
 /// Risk levels for depletion assessment

@@ -1,4 +1,3 @@
-#![cfg(test)]
 use super::*;
 use soroban_sdk::{symbol_short, testutils::Address as _, Address, Env};
 

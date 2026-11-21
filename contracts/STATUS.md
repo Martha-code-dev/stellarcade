@@ -29,12 +29,12 @@ Generated from `contracts/Cargo.toml` and `#[test]` attributes in each crate's
 result whenever membership or test attributes change;
 `python3 scripts/contract_inventory.py --check` fails when this block is stale.
 
-- Workspace members: **135**
-- Effectively excluded crates: **19** (a crate listed in both
+- Workspace members: **138**
+- Effectively excluded crates: **16** (a crate listed in both
   `members` and `exclude` is a member, not an exclusion)
 - Crate directories containing a `Cargo.toml`: **154**
 
-**Excluded crates** (19): `higher-lower`, `merch-redemption`, `profile-perks`, `daily-reward-emission`, `escrow-ledger`, `escrow-vault`, `fanout-distributor`, `guild-progress`, `ladder-checkpoints`, `ladder-seasons`, `loot-crate`, `map-voting`, `mission-ledger`, `prize-router-v2`, `quest-ledger-v2`, `queue-rewards`, `squad-rewards`, `squad-roster`, `wallet-reserves`.
+**Excluded crates** (16): `higher-lower`, `merch-redemption`, `profile-perks`, `daily-reward-emission`, `escrow-ledger`, `escrow-vault`, `fanout-distributor`, `guild-progress`, `ladder-checkpoints`, `ladder-seasons`, `loot-crate`, `map-voting`, `mission-ledger`, `prize-router-v2`, `quest-ledger-v2`, `queue-rewards`.
 
 #### Test attributes by crate
 
@@ -84,7 +84,7 @@ result whenever membership or test attributes change;
 | `daily-reward-emission` | excluded | 3 |
 | `daily-trivia` | member | 9 |
 | `deployment-scripts` | member | 3 |
-| `dice-roll` | member | 34 |
+| `dice-roll` | member | 41 |
 | `duel-engine` | member | 4 |
 | `dutch-auction` | member | 15 |
 | `dynamic-fee-policy` | member | 9 |
@@ -167,8 +167,8 @@ result whenever membership or test attributes change;
 | `sponsor-pool` | member | 10 |
 | `sponsorship-ledger` | member | 11 |
 | `squad-match` | member | 6 |
-| `squad-rewards` | excluded | 3 |
-| `squad-roster` | excluded | 5 |
+| `squad-rewards` | member | 3 |
+| `squad-roster` | member | 5 |
 | `staking` | member | 11 |
 | `staking-rewards` | member | 7 |
 | `streak-bonus` | member | 21 |
@@ -192,7 +192,7 @@ result whenever membership or test attributes change;
 | `voucher-escrow` | member | 4 |
 | `voucher-minter` | member | 9 |
 | `wallet-claims-v2` | member | 3 |
-| `wallet-reserves` | excluded | 16 |
+| `wallet-reserves` | member | 10 |
 | `wordle-clone` | member | 22 |
 
 > **A test count is not a security sign-off.** These numbers count `#[test]`

@@ -4,7 +4,12 @@ use soroban_sdk::{testutils::Address as _, vec, Address, Env};
 
 use crate::{MemberPayout, SquadRewards, SquadRewardsClient};
 
-fn setup() -> (Env, Address, soroban_sdk::Address, SquadRewardsClient<'static>) {
+fn setup() -> (
+    Env,
+    Address,
+    soroban_sdk::Address,
+    SquadRewardsClient<'static>,
+) {
     let env = Env::default();
     let admin = Address::generate(&env);
     let id = env.register(SquadRewards, ());
@@ -19,8 +24,16 @@ fn team_payout_coverage_success_path() {
     let (env, admin, _id, client) = setup();
     let payouts = vec![
         &env,
-        MemberPayout { member_index: 0, amount: 100, claimed: false },
-        MemberPayout { member_index: 1, amount: 200, claimed: false },
+        MemberPayout {
+            member_index: 0,
+            amount: 100,
+            claimed: false,
+        },
+        MemberPayout {
+            member_index: 1,
+            amount: 200,
+            claimed: false,
+        },
     ];
     client.fund_pool(&admin, &300);
     client.register_members(&admin, &payouts);
@@ -48,7 +61,11 @@ fn claim_readiness_with_members_and_pool() {
     let (env, admin, _id, client) = setup();
     let payouts = vec![
         &env,
-        MemberPayout { member_index: 0, amount: 500, claimed: false },
+        MemberPayout {
+            member_index: 0,
+            amount: 500,
+            claimed: false,
+        },
     ];
     client.fund_pool(&admin, &500);
     client.register_members(&admin, &payouts);

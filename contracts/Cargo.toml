@@ -135,8 +135,11 @@ members = [
     "reserve-auction",
     "round-vouchers",
     "squad-match",
+    "squad-rewards",
+    "squad-roster",
     "upgrade-mechanism",
     "wallet-claims-v2",
+    "wallet-reserves",
 ]
 
 exclude = [
@@ -163,9 +166,6 @@ exclude = [
     "prize-router-v2",
     "quest-ledger-v2",
     "queue-rewards",
-    "squad-rewards",
-    "squad-roster",
-    "wallet-reserves",
 ]
 
 [profile.release]

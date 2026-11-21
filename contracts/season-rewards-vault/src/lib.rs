@@ -16,10 +16,7 @@
 #![no_std]
 #![allow(unexpected_cfgs)]
 
-use soroban_sdk::{
-    contract, contracterror, contractevent, contractimpl, contracttype, vec, Address, Env,
-    String, Vec,
-};
+use soroban_sdk::{contract, contracterror, contractevent, contractimpl, Address, Env, String};
 
 mod storage;
 mod types;
@@ -44,15 +41,15 @@ pub const PERSISTENT_BUMP_LEDGERS: u32 = 518_400;
 #[repr(u32)]
 pub enum Error {
     AlreadyInitialized = 1,
-    NotInitialized     = 2,
-    NotAuthorized      = 3,
-    SeasonNotFound     = 4,
+    NotInitialized = 2,
+    NotAuthorized = 3,
+    SeasonNotFound = 4,
     SeasonAlreadyExists = 5,
-    InvalidInput       = 6,
-    NotClaimable       = 7,
-    SeasonInactive     = 8,
-    RewardNotFound     = 9,
-    AlreadyClaimed     = 10,
+    InvalidInput = 6,
+    NotClaimable = 7,
+    SeasonInactive = 8,
+    RewardNotFound = 9,
+    AlreadyClaimed = 10,
 }
 
 // ---------------------------------------------------------------------------
@@ -198,8 +195,7 @@ impl SeasonRewardsVault {
             return Err(Error::InvalidInput);
         }
 
-        let config = get_season_config(&env, season_id)
-            .ok_or(Error::SeasonNotFound)?;
+        let config = get_season_config(&env, season_id).ok_or(Error::SeasonNotFound)?;
 
         if !config.is_active {
             return Err(Error::SeasonInactive);
@@ -245,7 +241,12 @@ impl SeasonRewardsVault {
     // -----------------------------------------------------------------------
 
     /// Claim a pending reward for a user.
-    pub fn claim_reward(env: Env, user: Address, season_id: u64, reward_index: u32) -> Result<(), Error> {
+    pub fn claim_reward(
+        env: Env,
+        user: Address,
+        season_id: u64,
+        reward_index: u32,
+    ) -> Result<(), Error> {
         require_initialized(&env)?;
 
         user.require_auth();
@@ -276,7 +277,7 @@ impl SeasonRewardsVault {
         set_claim_queue(&env, season_id, &queue);
 
         // Update user's reward record
-        self::mark_user_reward_claimed(&env, &user, season_id, reward_index);
+        self::mark_user_reward_claimed(&env, &user, season_id);
 
         RewardClaimed {
             season_id,
@@ -302,11 +303,9 @@ impl SeasonRewardsVault {
         require_initialized(&env)?;
         require_admin(&env, &admin)?;
 
-        let from_config = get_season_config(&env, from_season)
-            .ok_or(Error::SeasonNotFound)?;
+        let from_config = get_season_config(&env, from_season).ok_or(Error::SeasonNotFound)?;
 
-        let to_config = get_season_config(&env, to_season)
-            .ok_or(Error::SeasonNotFound)?;
+        let _to_config = get_season_config(&env, to_season).ok_or(Error::SeasonNotFound)?;
 
         if !from_config.auto_rollover {
             return Err(Error::InvalidInput);
@@ -355,16 +354,16 @@ impl SeasonRewardsVault {
     pub fn get_claim_queue_snapshot(env: Env, season_id: u64) -> ClaimQueueSnapshot {
         let queue = get_claim_queue(&env, season_id);
         let current_ledger = env.ledger().sequence();
-        
-        let total_pending_amount = queue.iter()
+
+        let total_pending_amount = queue
+            .iter()
             .filter(|reward| !reward.is_claimed)
             .fold(0i128, |acc, reward| acc + reward.amount);
 
-        let queue_length = queue.iter()
-            .filter(|reward| !reward.is_claimed)
-            .count() as u32;
+        let queue_length = queue.iter().filter(|reward| !reward.is_claimed).count() as u32;
 
-        let oldest_claim_age = queue.iter()
+        let oldest_claim_age = queue
+            .iter()
             .filter(|reward| !reward.is_claimed)
             .map(|reward| u64::from(current_ledger).saturating_sub(reward.created_at))
             .max()
@@ -389,14 +388,13 @@ impl SeasonRewardsVault {
     /// including the amount, reason, and target season.
     /// Returns empty state for seasons without rollover.
     pub fn get_rollover_balance_accessor(env: Env, season_id: u64) -> RolloverBalance {
-        get_rollover_balance(&env, season_id)
-            .unwrap_or(RolloverBalance {
-                season_id,
-                total_rollover_amount: 0,
-                rollover_reason: String::from_str(&env, "No rollover"),
-                last_rollover_at: 0,
-                next_season_id: None,
-            })
+        get_rollover_balance(&env, season_id).unwrap_or(RolloverBalance {
+            season_id,
+            total_rollover_amount: 0,
+            rollover_reason: String::from_str(&env, "No rollover"),
+            last_rollover_at: 0,
+            next_season_id: None,
+        })
     }
 
     // -----------------------------------------------------------------------
@@ -404,7 +402,11 @@ impl SeasonRewardsVault {
     // -----------------------------------------------------------------------
 
     /// Return a user's claim summary for a season.
-    pub fn get_user_claim_summary(env: Env, user: Address, season_id: u64) -> Option<UserClaimSummary> {
+    pub fn get_user_claim_summary(
+        env: Env,
+        user: Address,
+        season_id: u64,
+    ) -> Option<UserClaimSummary> {
         get_user_claim_summary(&env, &user, season_id)
     }
 
@@ -505,9 +507,7 @@ impl SeasonRewardsVault {
             start_time: config.start_time,
             end_time: config.end_time,
             is_active: config.is_active,
-            window_open: config.is_active
-                && now >= config.start_time
-                && now <= config.end_time,
+            window_open: config.is_active && now >= config.start_time && now <= config.end_time,
             is_expired: now > config.end_time,
         }
     }
@@ -535,14 +535,13 @@ fn require_admin(env: &Env, caller: &Address) -> Result<(), Error> {
 
 fn update_user_claim_summary(env: &Env, user: &Address, season_id: u64, amount: i128) {
     let current_ledger = env.ledger().sequence();
-    let summary = get_user_claim_summary(env, user, season_id)
-        .unwrap_or(UserClaimSummary {
-            user: user.clone(),
-            season_id,
-            total_claimable: 0,
-            claim_count: 0,
-            oldest_unclaimed_age: current_ledger as u64,
-        });
+    let summary = get_user_claim_summary(env, user, season_id).unwrap_or(UserClaimSummary {
+        user: user.clone(),
+        season_id,
+        total_claimable: 0,
+        claim_count: 0,
+        oldest_unclaimed_age: current_ledger as u64,
+    });
 
     let updated_summary = UserClaimSummary {
         user: user.clone(),
@@ -555,9 +554,9 @@ fn update_user_claim_summary(env: &Env, user: &Address, season_id: u64, amount: 
     set_user_claim_summary(env, user, season_id, &updated_summary);
 }
 
-fn mark_user_reward_claimed(env: &Env, user: &Address, season_id: u64, reward_index: u32) {
+fn mark_user_reward_claimed(env: &Env, user: &Address, season_id: u64) {
     let mut rewards = get_user_rewards(env, user);
-    
+
     // Find the corresponding reward in user's rewards and mark as claimed
     for i in 0..rewards.len() {
         let reward = rewards.get(i).unwrap();
@@ -568,7 +567,7 @@ fn mark_user_reward_claimed(env: &Env, user: &Address, season_id: u64, reward_in
             break;
         }
     }
-    
+
     set_user_rewards(env, user, &rewards);
 }
 
@@ -610,14 +609,7 @@ mod test {
         let (client, admin) = setup(&env);
         env.mock_all_auths();
 
-        client.create_season(
-            &admin,
-            &1u64,
-            &100u64,
-            &200u64,
-            &10000i128,
-            &true,
-        );
+        client.create_season(&admin, &1u64, &100u64, &200u64, &10000i128, &true);
         // No panic = success
     }
 
@@ -628,14 +620,7 @@ mod test {
         env.mock_all_auths();
 
         // Create season
-        client.create_season(
-            &admin,
-            &1u64,
-            &100u64,
-            &200u64,
-            &10000i128,
-            &true,
-        );
+        client.create_season(&admin, &1u64, &100u64, &200u64, &10000i128, &true);
 
         let user = Address::generate(&env);
         client.add_reward(
@@ -659,19 +644,12 @@ mod test {
         env.mock_all_auths();
 
         // Create season
-        client.create_season(
-            &admin,
-            &1u64,
-            &100u64,
-            &200u64,
-            &10000i128,
-            &true,
-        );
+        client.create_season(&admin, &1u64, &100u64, &200u64, &10000i128, &true);
 
         // Add rewards
         let user1 = Address::generate(&env);
         let user2 = Address::generate(&env);
-        
+
         client.add_reward(
             &admin,
             &1u64,
@@ -680,7 +658,7 @@ mod test {
             &soroban_sdk::String::from_str(&env, "reward1"),
             &300u64,
         );
-        
+
         client.add_reward(
             &admin,
             &1u64,
@@ -715,28 +693,17 @@ mod test {
         env.mock_all_auths();
 
         // Create seasons
-        client.create_season(
-            &admin,
-            &1u64,
-            &100u64,
-            &200u64,
-            &10000i128,
-            &true,
-        );
-        
-        client.create_season(
-            &admin,
-            &2u64,
-            &201u64,
-            &300u64,
-            &15000i128,
-            &true,
-        );
+        client.create_season(&admin, &1u64, &100u64, &200u64, &10000i128, &true);
+
+        client.create_season(&admin, &2u64, &201u64, &300u64, &15000i128, &true);
 
         // Initially no rollover
         let rollover = client.get_rollover_balance_accessor(&1u64);
         assert_eq!(rollover.total_rollover_amount, 0i128);
-        assert_eq!(rollover.rollover_reason, soroban_sdk::String::from_str(&env, "No rollover"));
+        assert_eq!(
+            rollover.rollover_reason,
+            soroban_sdk::String::from_str(&env, "No rollover")
+        );
 
         // Process rollover (even with no expired rewards)
         client.process_season_rollover(&admin, &1u64, &2u64);
@@ -753,14 +720,7 @@ mod test {
         env.mock_all_auths();
 
         // Create season
-        client.create_season(
-            &admin,
-            &1u64,
-            &100u64,
-            &200u64,
-            &10000i128,
-            &true,
-        );
+        client.create_season(&admin, &1u64, &100u64, &200u64, &10000i128, &true);
 
         let user = Address::generate(&env);
         client.add_reward(
@@ -785,14 +745,7 @@ mod test {
         let (client, admin) = setup(&env);
         env.mock_all_auths();
 
-        client.create_season(
-            &admin,
-            &1u64,
-            &100u64,
-            &200u64,
-            &10000i128,
-            &true,
-        );
+        client.create_season(&admin, &1u64, &100u64, &200u64, &10000i128, &true);
 
         let config = client.get_season_config(&1u64);
         assert!(config.is_some());

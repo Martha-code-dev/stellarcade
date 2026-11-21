@@ -29,12 +29,12 @@ Generated from `contracts/Cargo.toml` and `#[test]` attributes in each crate's
 result whenever membership or test attributes change;
 `python3 scripts/contract_inventory.py --check` fails when this block is stale.
 
-- Workspace members: **130**
-- Effectively excluded crates: **24** (a crate listed in both
+- Workspace members: **134**
+- Effectively excluded crates: **20** (a crate listed in both
   `members` and `exclude` is a member, not an exclusion)
 - Crate directories containing a `Cargo.toml`: **154**
 
-**Excluded crates** (24): `higher-lower`, `merch-redemption`, `profile-perks`, `contract-upgrade-timelock`, `daily-reward-emission`, `escrow-ledger`, `escrow-vault`, `fanout-distributor`, `guild-progress`, `ladder-checkpoints`, `ladder-seasons`, `loot-crate`, `map-voting`, `mission-ledger`, `prize-router-v2`, `quest-ledger-v2`, `queue-rewards`, `reward-bridges`, `reward-unlocker`, `season-rewards-vault`, `squad-rewards`, `squad-roster`, `trivia-game`, `wallet-reserves`.
+**Excluded crates** (20): `higher-lower`, `merch-redemption`, `profile-perks`, `contract-upgrade-timelock`, `daily-reward-emission`, `escrow-ledger`, `escrow-vault`, `fanout-distributor`, `guild-progress`, `ladder-checkpoints`, `ladder-seasons`, `loot-crate`, `map-voting`, `mission-ledger`, `prize-router-v2`, `quest-ledger-v2`, `queue-rewards`, `squad-rewards`, `squad-roster`, `wallet-reserves`.
 
 #### Test attributes by crate
 
@@ -149,16 +149,16 @@ result whenever membership or test attributes change;
 | `reserve-auction` | member | 6 |
 | `reserve-manager` | member | 9 |
 | `revenue-split` | member | 8 |
-| `reward-bridges` | excluded | 4 |
+| `reward-bridges` | member | 4 |
 | `reward-distribution` | member | 21 |
 | `reward-router` | member | 6 |
 | `reward-stream` | member | 8 |
-| `reward-unlocker` | excluded | 13 |
+| `reward-unlocker` | member | 13 |
 | `reward-vesting` | member | 20 |
 | `rock-paper-scissors` | member | 14 |
 | `round-finalizer` | member | 6 |
 | `round-vouchers` | member | 3 |
-| `season-rewards-vault` | excluded | 12 |
+| `season-rewards-vault` | member | 12 |
 | `session-nonce-manager` | member | 14 |
 | `settlement-queue` | member | 17 |
 | `shared` | member | 0 |
@@ -183,7 +183,7 @@ result whenever membership or test attributes change;
 | `treasury` | member | 14 |
 | `treasury-allocation` | member | 14 |
 | `treasury-safeguard` | member | 9 |
-| `trivia-game` | excluded | 3 |
+| `trivia-game` | member | 3 |
 | `upgrade-mechanism` | member | 8 |
 | `vault-claims` | member | 7 |
 | `vault-routing` | member | 2 |

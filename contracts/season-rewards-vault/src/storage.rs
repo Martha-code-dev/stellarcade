@@ -1,5 +1,3 @@
-#![no_std]
-
 use soroban_sdk::{contracttype, Address, Env, Vec};
 
 use crate::types::*;
@@ -11,10 +9,10 @@ pub enum DataKey {
     Admin,
     SeasonConfig(u64),
     UserRewards(Address),           // All rewards for a user
-    SeasonRewards(u64),              // All rewards for a season
-    ClaimQueue(u64),                 // Pending claims for a season
-    RolloverBalance(u64),            // Rollover balance for a season
-    UserClaimSummary(Address, u64),  // User's claim summary for a season
+    SeasonRewards(u64),             // All rewards for a season
+    ClaimQueue(u64),                // Pending claims for a season
+    RolloverBalance(u64),           // Rollover balance for a season
+    UserClaimSummary(Address, u64), // User's claim summary for a season
     CurrentSeason,
 }
 
@@ -36,15 +34,21 @@ pub fn get_current_season(env: &Env) -> Option<u64> {
 }
 
 pub fn set_current_season(env: &Env, season_id: u64) {
-    env.storage().instance().set(&DataKey::CurrentSeason, &season_id);
+    env.storage()
+        .instance()
+        .set(&DataKey::CurrentSeason, &season_id);
 }
 
 pub fn get_season_config(env: &Env, season_id: u64) -> Option<SeasonConfig> {
-    env.storage().persistent().get(&DataKey::SeasonConfig(season_id))
+    env.storage()
+        .persistent()
+        .get(&DataKey::SeasonConfig(season_id))
 }
 
 pub fn set_season_config(env: &Env, season_id: u64, config: &SeasonConfig) {
-    env.storage().persistent().set(&DataKey::SeasonConfig(season_id), config);
+    env.storage()
+        .persistent()
+        .set(&DataKey::SeasonConfig(season_id), config);
     env.storage().persistent().extend_ttl(
         &DataKey::SeasonConfig(season_id),
         PERSISTENT_BUMP_LEDGERS,
@@ -60,7 +64,9 @@ pub fn get_user_rewards(env: &Env, user: &Address) -> Vec<SeasonReward> {
 }
 
 pub fn set_user_rewards(env: &Env, user: &Address, rewards: &Vec<SeasonReward>) {
-    env.storage().persistent().set(&DataKey::UserRewards(user.clone()), rewards);
+    env.storage()
+        .persistent()
+        .set(&DataKey::UserRewards(user.clone()), rewards);
     env.storage().persistent().extend_ttl(
         &DataKey::UserRewards(user.clone()),
         PERSISTENT_BUMP_LEDGERS,
@@ -82,7 +88,9 @@ pub fn get_season_rewards(env: &Env, season_id: u64) -> Vec<SeasonReward> {
 }
 
 pub fn set_season_rewards(env: &Env, season_id: u64, rewards: &Vec<SeasonReward>) {
-    env.storage().persistent().set(&DataKey::SeasonRewards(season_id), rewards);
+    env.storage()
+        .persistent()
+        .set(&DataKey::SeasonRewards(season_id), rewards);
     env.storage().persistent().extend_ttl(
         &DataKey::SeasonRewards(season_id),
         PERSISTENT_BUMP_LEDGERS,
@@ -98,7 +106,9 @@ pub fn get_claim_queue(env: &Env, season_id: u64) -> Vec<SeasonReward> {
 }
 
 pub fn set_claim_queue(env: &Env, season_id: u64, queue: &Vec<SeasonReward>) {
-    env.storage().persistent().set(&DataKey::ClaimQueue(season_id), queue);
+    env.storage()
+        .persistent()
+        .set(&DataKey::ClaimQueue(season_id), queue);
     env.storage().persistent().extend_ttl(
         &DataKey::ClaimQueue(season_id),
         PERSISTENT_BUMP_LEDGERS,
@@ -112,24 +122,16 @@ pub fn add_to_claim_queue(env: &Env, season_id: u64, reward: &SeasonReward) {
     set_claim_queue(env, season_id, &queue);
 }
 
-pub fn remove_from_claim_queue(env: &Env, season_id: u64, index: u32) -> Option<SeasonReward> {
-    let mut queue = get_claim_queue(env, season_id);
-    if index >= queue.len() {
-        return None;
-    }
-    
-    let removed = queue.get(index);
-    queue.remove(index);
-    set_claim_queue(env, season_id, &queue);
-    removed
-}
-
 pub fn get_rollover_balance(env: &Env, season_id: u64) -> Option<RolloverBalance> {
-    env.storage().persistent().get(&DataKey::RolloverBalance(season_id))
+    env.storage()
+        .persistent()
+        .get(&DataKey::RolloverBalance(season_id))
 }
 
 pub fn set_rollover_balance(env: &Env, season_id: u64, balance: &RolloverBalance) {
-    env.storage().persistent().set(&DataKey::RolloverBalance(season_id), balance);
+    env.storage()
+        .persistent()
+        .set(&DataKey::RolloverBalance(season_id), balance);
     env.storage().persistent().extend_ttl(
         &DataKey::RolloverBalance(season_id),
         PERSISTENT_BUMP_LEDGERS,
@@ -137,12 +139,25 @@ pub fn set_rollover_balance(env: &Env, season_id: u64, balance: &RolloverBalance
     );
 }
 
-pub fn get_user_claim_summary(env: &Env, user: &Address, season_id: u64) -> Option<UserClaimSummary> {
-    env.storage().persistent().get(&DataKey::UserClaimSummary(user.clone(), season_id))
+pub fn get_user_claim_summary(
+    env: &Env,
+    user: &Address,
+    season_id: u64,
+) -> Option<UserClaimSummary> {
+    env.storage()
+        .persistent()
+        .get(&DataKey::UserClaimSummary(user.clone(), season_id))
 }
 
-pub fn set_user_claim_summary(env: &Env, user: &Address, season_id: u64, summary: &UserClaimSummary) {
-    env.storage().persistent().set(&DataKey::UserClaimSummary(user.clone(), season_id), summary);
+pub fn set_user_claim_summary(
+    env: &Env,
+    user: &Address,
+    season_id: u64,
+    summary: &UserClaimSummary,
+) {
+    env.storage()
+        .persistent()
+        .set(&DataKey::UserClaimSummary(user.clone(), season_id), summary);
     env.storage().persistent().extend_ttl(
         &DataKey::UserClaimSummary(user.clone(), season_id),
         PERSISTENT_BUMP_LEDGERS,

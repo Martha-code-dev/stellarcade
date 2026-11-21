@@ -40,5 +40,7 @@ pub fn get_total_locked(env: &Env) -> i128 {
 }
 
 pub fn set_total_locked(env: &Env, total: i128) {
-    env.storage().persistent().set(&DataKey::TotalLocked, &total);
+    env.storage()
+        .persistent()
+        .set(&DataKey::TotalLocked, &total);
 }

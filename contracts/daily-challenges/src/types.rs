@@ -1,4 +1,4 @@
-use soroban_sdk::{contracttype, Address, Symbol};
+use soroban_sdk::{contracttype, Symbol};
 
 /// Aggregated completion status summary returned by `completion_status_summary`.
 ///

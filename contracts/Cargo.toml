@@ -2,6 +2,10 @@
 resolver = "2"
 
 members = [
+    "cross-chain-bridge",
+    "daily-challenges",
+    "governance-token",
+    "creator-vaults",
     "access-control",
     "anti-cheat-bounties",
     "arena-ladder",
@@ -142,14 +146,10 @@ exclude = [
     # explicitly in `members` above — they've been removed from `members`
     # too. Fix and re-add individually; don't bulk re-add.
     "contract-upgrade-timelock",
-    "creator-vaults",
-    "cross-chain-bridge",
-    "daily-challenges",
     "daily-reward-emission",
     "escrow-ledger",
     "escrow-vault",
     "fanout-distributor",
-    "governance-token",
     "guild-progress",
     "ladder-checkpoints",
     "ladder-seasons",

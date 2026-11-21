@@ -82,7 +82,7 @@ fn test_claim_cycle() {
 
     let user = Address::generate(&s.env);
     s.client.accrue_reward(&user, &500);
-    
+
     assert_eq!(s.client.claim_reward(&user), 500);
     assert_eq!(s.client.pending_balance(&user), 0);
 

@@ -140,12 +140,15 @@ members = [
     "upgrade-mechanism",
     "wallet-claims-v2",
     "wallet-reserves",
+    "prize-router-v2",
+    "profile-perks",
+    "quest-ledger-v2",
+    "queue-rewards",
 ]
 
 exclude = [
     "higher-lower",
     "merch-redemption",
-    "profile-perks",
     # The crates below fail `cargo clippy --workspace -D warnings` (mostly
     # unused imports/dead code in unfinished stubs) or don't compile at all
     # under the wasm32v1-none target, surfaced when CI moved from a curated
@@ -163,9 +166,6 @@ exclude = [
     "loot-crate",
     "map-voting",
     "mission-ledger",
-    "prize-router-v2",
-    "quest-ledger-v2",
-    "queue-rewards",
 ]
 
 [profile.release]

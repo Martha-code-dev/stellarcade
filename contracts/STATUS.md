@@ -29,12 +29,12 @@ Generated from `contracts/Cargo.toml` and `#[test]` attributes in each crate's
 result whenever membership or test attributes change;
 `python3 scripts/contract_inventory.py --check` fails when this block is stale.
 
-- Workspace members: **138**
-- Effectively excluded crates: **16** (a crate listed in both
+- Workspace members: **142**
+- Effectively excluded crates: **12** (a crate listed in both
   `members` and `exclude` is a member, not an exclusion)
 - Crate directories containing a `Cargo.toml`: **154**
 
-**Excluded crates** (16): `higher-lower`, `merch-redemption`, `profile-perks`, `daily-reward-emission`, `escrow-ledger`, `escrow-vault`, `fanout-distributor`, `guild-progress`, `ladder-checkpoints`, `ladder-seasons`, `loot-crate`, `map-voting`, `mission-ledger`, `prize-router-v2`, `quest-ledger-v2`, `queue-rewards`.
+**Excluded crates** (12): `higher-lower`, `merch-redemption`, `daily-reward-emission`, `escrow-ledger`, `escrow-vault`, `fanout-distributor`, `guild-progress`, `ladder-checkpoints`, `ladder-seasons`, `loot-crate`, `map-voting`, `mission-ledger`.
 
 #### Test attributes by crate
 
@@ -134,12 +134,12 @@ result whenever membership or test attributes change;
 | `price-prediction` | member | 37 |
 | `prize-ledger-v2` | member | 5 |
 | `prize-pool` | member | 35 |
-| `prize-router-v2` | excluded | 7 |
+| `prize-router-v2` | member | 7 |
 | `prize-streamer` | member | 8 |
-| `profile-perks` | excluded | 3 |
-| `quest-ledger-v2` | excluded | 13 |
+| `profile-perks` | member | 4 |
+| `quest-ledger-v2` | member | 10 |
 | `quest-redeemer` | member | 10 |
-| `queue-rewards` | excluded | 5 |
+| `queue-rewards` | member | 5 |
 | `raffle-engine` | member | 3 |
 | `random-generator` | member | 41 |
 | `rank-rewards` | member | 5 |

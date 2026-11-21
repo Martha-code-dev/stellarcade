@@ -145,8 +145,8 @@ impl QueueRewards {
     /// Returns `None` for internal fields if the contract hasn't been initialized
     /// or the user has never interacted with the rewards system.
     pub fn get_reward_snapshot(env: Env, user: Address) -> RewardSnapshot {
-        let config = get_config(&env);
-        let user_state = get_user_state(&env, &user);
+        let config = get_config(&env).into();
+        let user_state = get_user_state(&env, &user).into();
 
         RewardSnapshot {
             config,

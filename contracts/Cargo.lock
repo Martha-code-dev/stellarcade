@@ -2418,6 +2418,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "stellarcade-prize-router-v2"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "stellarcade-prize-streamer"
 version = "0.1.0"
 dependencies = [
@@ -2425,7 +2432,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "stellarcade-profile-perks"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellarcade-quest-ledger-v2"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "stellarcade-quest-redeemer"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellarcade-queue-rewards"
 version = "0.1.0"
 dependencies = [
  "soroban-sdk",

@@ -1,8 +1,7 @@
 use soroban_sdk::contracttype;
 
-pub const PERSISTENT_BUMP: u32 = 518_400; // ~30 days
-
 #[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DataKey {
     Admin,
     /// Vec<PendingPayout>

@@ -129,11 +129,10 @@ describe('POST /auth/login', () => {
     const keypair = Keypair.random();
     const address = keypair.publicKey();
 
-    User.findByWallet.mockResolvedValue(null);
-    User.create.mockResolvedValue({
+    User.reserveWallet.mockResolvedValue({
       id: 3,
       wallet_address: address,
-      username: 'player',
+      username: null,
       created_at: new Date('2026-01-01T00:00:00.000Z'),
       updated_at: new Date('2026-01-01T00:00:00.000Z'),
     });
@@ -146,17 +145,15 @@ describe('POST /auth/login', () => {
     expect(res.status).toBe(200);
     expect(typeof res.body.token).toBe('string');
     expect(res.body.profile.address).toBe(address);
-    expect(User.create).toHaveBeenCalledWith({
-      wallet_address: address,
-      username: 'player',
-    });
+    expect(User.reserveWallet).toHaveBeenCalledWith(address);
+    expect(User.create).not.toHaveBeenCalled();
   });
 
   test('logs in an existing profile without re-creating it', async () => {
     const keypair = Keypair.random();
     const address = keypair.publicKey();
 
-    User.findByWallet.mockResolvedValue({
+    User.reserveWallet.mockResolvedValue({
       id: 9,
       wallet_address: address,
       username: 'alice',
@@ -177,7 +174,7 @@ describe('POST /auth/login', () => {
   test('replaying a used challenge/signature fails', async () => {
     const keypair = Keypair.random();
     const address = keypair.publicKey();
-    User.findByWallet.mockResolvedValue({ id: 1, wallet_address: address, username: 'alice' });
+    User.reserveWallet.mockResolvedValue({ id: 1, wallet_address: address, username: 'alice' });
 
     const challengeRes = await request(app).post('/auth/challenge').send({ address });
     const signature = signChallenge(keypair, challengeRes.body.challenge);

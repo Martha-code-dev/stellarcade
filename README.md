@@ -24,6 +24,7 @@
 | **Arbiter Engine**             | Render Web Service | `https://stellarcade-arbiter.onrender.com`                 |
 | **Telegram Bot**               | Render Web Service | Active via `@StellarcadeOfficialBot`                       |
 | **Coin Flip Contract**         | Soroban Testnet    | `CDP77TELLHACC46EHR3N4ISRWJME446AGK5RM7D4D42YKDCB4LXICKTE` |
+| **Dice Roll Contract**         | Soroban Testnet    | Not configured, pending verified deployment |
 | **Prize Pool Contract**        | Soroban Testnet    | `CBVNIITX42KQA3MKNUBKG4YIK4FCASZQWKWGHY3YYMM4ANGZ6MOZI2EC` |
 | **Random Generator Contract**  | Soroban Testnet    | `CAMYBISVQSSVJ3EPAZQWKPTTPGTYY5XIS2BZAG4TYFWTUKHQNPVXAV4O` |
 | **Access Control Contract**    | Soroban Testnet    | `CC2IRAYC3CT5KAV4PZKXKCE45Z3QAJQSJH7P5J3GITJT4T3KZ6634R7K` |

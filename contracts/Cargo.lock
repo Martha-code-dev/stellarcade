@@ -1864,6 +1864,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "stellarcade-achievements"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "stellarcade-affiliate-ledger"
 version = "0.1.0"
 dependencies = [

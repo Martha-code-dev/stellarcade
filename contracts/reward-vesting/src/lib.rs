@@ -258,15 +258,21 @@ impl RewardVestingContract {
         let now = env.ledger().timestamp();
         let vested = Self::vested_amount(&schedule, now);
         let unvested = schedule.amount.saturating_sub(vested).max(0);
+        // Pay earned-but-unclaimed tokens now; claim_vested skips revoked schedules.
+        let earned = vested.saturating_sub(schedule.claimed).max(0);
 
         schedule.revoked = true;
+        schedule.claimed += earned;
         let user = schedule.user.clone();
         map.set(schedule_id, schedule);
         env.storage().instance().set(&DataKey::ScheduleMap, &map);
 
+        let token_addr: Address = env.storage().instance().get(&DataKey::Token).unwrap();
+        let token = token::Client::new(&env, &token_addr);
+        if earned > 0 {
+            token.transfer(&env.current_contract_address(), &user, &earned);
+        }
         if unvested > 0 {
-            let token_addr: Address = env.storage().instance().get(&DataKey::Token).unwrap();
-            let token = token::Client::new(&env, &token_addr);
             token.transfer(&env.current_contract_address(), &admin, &unvested);
         }
 
@@ -492,6 +498,20 @@ mod tests {
         let id = client.create_vesting_schedule(&user, &amount, &start, &0, &1000);
         let unvested = client.revoke_schedule(&id);
         assert_eq!(unvested, amount);
+    }
+
+    #[test]
+    fn test_revoke_pays_vested_unclaimed_and_conserves_funds() {
+        let (env, client, admin, tc) = setup();
+        let (user, start) = (Address::generate(&env), env.ledger().timestamp());
+        let id = client.create_vesting_schedule(&user, &10_000, &start, &100, &1000);
+        env.ledger().with_mut(|l| l.timestamp = start + 100); // cliff boundary
+        assert_eq!(client.claim_vested(&user), 1_000);
+        env.ledger().with_mut(|l| l.timestamp = start + 400);
+        assert_eq!(client.revoke_schedule(&id), 6_000);
+        assert_eq!(tc.balance(&user), 4_000); // 1_000 claimed + 3_000 earned
+        assert_eq!(tc.balance(&admin), 996_000); // minted 1M, 6_000 unvested back
+        assert_eq!(tc.balance(&client.address), 0);
     }
 
     #[test]

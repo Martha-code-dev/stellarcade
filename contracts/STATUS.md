@@ -29,12 +29,12 @@ Generated from `contracts/Cargo.toml` and `#[test]` attributes in each crate's
 result whenever membership or test attributes change;
 `python3 scripts/contract_inventory.py --check` fails when this block is stale.
 
-- Workspace members: **122**
-- Effectively excluded crates: **32** (a crate listed in both
+- Workspace members: **123**
+- Effectively excluded crates: **31** (a crate listed in both
   `members` and `exclude` is a member, not an exclusion)
 - Crate directories containing a `Cargo.toml`: **154**
 
-**Excluded crates** (32): `higher-lower`, `merch-redemption`, `profile-perks`, `achievements`, `creator-vaults`, `cross-chain-bridge`, `daily-challenges`, `daily-reward-emission`, `escrow-ledger`, `escrow-vault`, `fanout-distributor`, `governance-token`, `guild-progress`, `ladder-checkpoints`, `ladder-seasons`, `loot-crate`, `map-voting`, `mission-ledger`, `prize-router-v2`, `quest-ledger-v2`, `queue-rewards`, `reward-bridges`, `reward-unlocker`, `round-vouchers`, `season-rewards-vault`, `squad-match`, `squad-rewards`, `squad-roster`, `trivia-game`, `upgrade-mechanism`, `wallet-claims-v2`, `wallet-reserves`.
+**Excluded crates** (31): `higher-lower`, `merch-redemption`, `profile-perks`, `creator-vaults`, `cross-chain-bridge`, `daily-challenges`, `daily-reward-emission`, `escrow-ledger`, `escrow-vault`, `fanout-distributor`, `governance-token`, `guild-progress`, `ladder-checkpoints`, `ladder-seasons`, `loot-crate`, `map-voting`, `mission-ledger`, `prize-router-v2`, `quest-ledger-v2`, `queue-rewards`, `reward-bridges`, `reward-unlocker`, `round-vouchers`, `season-rewards-vault`, `squad-match`, `squad-rewards`, `squad-roster`, `trivia-game`, `upgrade-mechanism`, `wallet-claims-v2`, `wallet-reserves`.
 
 #### Test attributes by crate
 
@@ -42,7 +42,7 @@ result whenever membership or test attributes change;
 | --- | --- | ---: |
 | `access-control` | member | 11 |
 | `achievement-badge` | member | 24 |
-| `achievements` | excluded | 7 |
+| `achievements` | member | 9 |
 | `affiliate-ledger` | member | 6 |
 | `ai-generated-game` | member | 5 |
 | `anti-cheat-bounties` | member | 19 |
@@ -133,7 +133,7 @@ result whenever membership or test attributes change;
 | `prediction-market` | member | 3 |
 | `price-prediction` | member | 37 |
 | `prize-ledger-v2` | member | 5 |
-| `prize-pool` | member | 34 |
+| `prize-pool` | member | 35 |
 | `prize-router-v2` | excluded | 7 |
 | `prize-streamer` | member | 8 |
 | `profile-perks` | excluded | 3 |
@@ -148,13 +148,13 @@ result whenever membership or test attributes change;
 | `referral-system` | member | 27 |
 | `reserve-auction` | member | 6 |
 | `reserve-manager` | member | 9 |
-| `revenue-split` | member | 7 |
+| `revenue-split` | member | 8 |
 | `reward-bridges` | excluded | 4 |
 | `reward-distribution` | member | 21 |
 | `reward-router` | member | 6 |
 | `reward-stream` | member | 8 |
 | `reward-unlocker` | excluded | 13 |
-| `reward-vesting` | member | 19 |
+| `reward-vesting` | member | 20 |
 | `rock-paper-scissors` | member | 14 |
 | `round-finalizer` | member | 6 |
 | `round-vouchers` | excluded | 2 |
@@ -169,7 +169,7 @@ result whenever membership or test attributes change;
 | `squad-match` | excluded | 5 |
 | `squad-rewards` | excluded | 3 |
 | `squad-roster` | excluded | 5 |
-| `staking` | member | 10 |
+| `staking` | member | 11 |
 | `staking-rewards` | member | 6 |
 | `streak-bonus` | member | 21 |
 | `streak-ladder` | member | 8 |

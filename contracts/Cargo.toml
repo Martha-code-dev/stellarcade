@@ -17,6 +17,7 @@ members = [
     "lobby-gates",
     "perk-claims",
     "achievement-badge",
+    "achievements",
     "ai-generated-game",
     "asset-escrow-v3",
     "attendance-pass",
@@ -137,7 +138,6 @@ exclude = [
     # documented) because `exclude` only takes effect for members not listed
     # explicitly in `members` above — they've been removed from `members`
     # too. Fix and re-add individually; don't bulk re-add.
-    "achievements",
     "creator-vaults",
     "cross-chain-bridge",
     "daily-challenges",

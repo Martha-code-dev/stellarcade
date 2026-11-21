@@ -29,12 +29,12 @@ Generated from `contracts/Cargo.toml` and `#[test]` attributes in each crate's
 result whenever membership or test attributes change;
 `python3 scripts/contract_inventory.py --check` fails when this block is stale.
 
-- Workspace members: **127**
-- Effectively excluded crates: **27** (a crate listed in both
+- Workspace members: **135**
+- Effectively excluded crates: **19** (a crate listed in both
   `members` and `exclude` is a member, not an exclusion)
 - Crate directories containing a `Cargo.toml`: **154**
 
-**Excluded crates** (27): `higher-lower`, `merch-redemption`, `profile-perks`, `daily-reward-emission`, `escrow-ledger`, `escrow-vault`, `fanout-distributor`, `guild-progress`, `ladder-checkpoints`, `ladder-seasons`, `loot-crate`, `map-voting`, `mission-ledger`, `prize-router-v2`, `quest-ledger-v2`, `queue-rewards`, `reward-bridges`, `reward-unlocker`, `round-vouchers`, `season-rewards-vault`, `squad-match`, `squad-rewards`, `squad-roster`, `trivia-game`, `upgrade-mechanism`, `wallet-claims-v2`, `wallet-reserves`.
+**Excluded crates** (19): `higher-lower`, `merch-redemption`, `profile-perks`, `daily-reward-emission`, `escrow-ledger`, `escrow-vault`, `fanout-distributor`, `guild-progress`, `ladder-checkpoints`, `ladder-seasons`, `loot-crate`, `map-voting`, `mission-ledger`, `prize-router-v2`, `quest-ledger-v2`, `queue-rewards`, `squad-rewards`, `squad-roster`, `wallet-reserves`.
 
 #### Test attributes by crate
 
@@ -53,7 +53,7 @@ result whenever membership or test attributes change;
 | `attendance-pass` | member | 12 |
 | `badge-minter` | member | 14 |
 | `balance-management` | member | 10 |
-| `blind-auction` | member | 3 |
+| `blind-auction` | member | 6 |
 | `bonus-rotator` | member | 6 |
 | `bonus-vault` | member | 6 |
 | `bounty-escrow` | member | 8 |
@@ -86,7 +86,7 @@ result whenever membership or test attributes change;
 | `deployment-scripts` | member | 3 |
 | `dice-roll` | member | 34 |
 | `duel-engine` | member | 4 |
-| `dutch-auction` | member | 11 |
+| `dutch-auction` | member | 15 |
 | `dynamic-fee-policy` | member | 9 |
 | `emergency-pause` | member | 14 |
 | `epoch-scheduler` | member | 15 |
@@ -96,7 +96,7 @@ result whenever membership or test attributes change;
 | `exploit-prevention` | member | 36 |
 | `fanout-distributor` | excluded | 9 |
 | `fee-allocator` | member | 6 |
-| `fee-management` | member | 25 |
+| `fee-management` | member | 26 |
 | `fee-shield` | member | 4 |
 | `gas-optimization-analysis` | member | 2 |
 | `governance` | member | 29 |
@@ -149,16 +149,16 @@ result whenever membership or test attributes change;
 | `reserve-auction` | member | 6 |
 | `reserve-manager` | member | 9 |
 | `revenue-split` | member | 8 |
-| `reward-bridges` | excluded | 4 |
+| `reward-bridges` | member | 4 |
 | `reward-distribution` | member | 21 |
 | `reward-router` | member | 6 |
 | `reward-stream` | member | 8 |
-| `reward-unlocker` | excluded | 13 |
+| `reward-unlocker` | member | 13 |
 | `reward-vesting` | member | 20 |
 | `rock-paper-scissors` | member | 14 |
 | `round-finalizer` | member | 6 |
-| `round-vouchers` | excluded | 2 |
-| `season-rewards-vault` | excluded | 12 |
+| `round-vouchers` | member | 3 |
+| `season-rewards-vault` | member | 12 |
 | `session-nonce-manager` | member | 14 |
 | `settlement-queue` | member | 17 |
 | `shared` | member | 0 |
@@ -166,11 +166,11 @@ result whenever membership or test attributes change;
 | `sponsor-lockbox` | member | 2 |
 | `sponsor-pool` | member | 10 |
 | `sponsorship-ledger` | member | 11 |
-| `squad-match` | excluded | 5 |
+| `squad-match` | member | 6 |
 | `squad-rewards` | excluded | 3 |
 | `squad-roster` | excluded | 5 |
 | `staking` | member | 11 |
-| `staking-rewards` | member | 6 |
+| `staking-rewards` | member | 7 |
 | `streak-bonus` | member | 21 |
 | `streak-ladder` | member | 8 |
 | `team-prizes` | member | 9 |
@@ -183,15 +183,15 @@ result whenever membership or test attributes change;
 | `treasury` | member | 14 |
 | `treasury-allocation` | member | 14 |
 | `treasury-safeguard` | member | 9 |
-| `trivia-game` | excluded | 3 |
-| `upgrade-mechanism` | excluded | 8 |
+| `trivia-game` | member | 3 |
+| `upgrade-mechanism` | member | 8 |
 | `vault-claims` | member | 7 |
 | `vault-routing` | member | 2 |
 | `vip-subscription` | member | 24 |
 | `vote-escrow` | member | 3 |
 | `voucher-escrow` | member | 4 |
 | `voucher-minter` | member | 9 |
-| `wallet-claims-v2` | excluded | 2 |
+| `wallet-claims-v2` | member | 3 |
 | `wallet-reserves` | excluded | 16 |
 | `wordle-clone` | member | 22 |
 

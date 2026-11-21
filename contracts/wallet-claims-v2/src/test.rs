@@ -1,5 +1,3 @@
-#![cfg(test)]
-
 use super::*;
 use soroban_sdk::testutils::{Address as _, Ledger};
 use soroban_sdk::{Address, Env};
@@ -59,4 +57,17 @@ fn cooldown_threshold_accessor_returns_missing_defaults_and_blocking_window() {
     let open = client.cooldown_threshold_accessor(&wallet);
     assert!(!open.currently_blocked);
     assert_eq!(open.seconds_until_next_window, 0);
+}
+
+#[test]
+fn unauthorized_non_admin_cannot_manage_claims() {
+    let (env, _admin, client) = setup();
+    let imposter = Address::generate(&env);
+    let wallet = Address::generate(&env);
+
+    let res = client.try_set_cooldown_policy(&imposter, &wallet, &600u64, &100i128, &false);
+    assert_eq!(res, Err(Ok(Error::NotAuthorized)));
+
+    let res2 = client.try_queue_claim(&imposter, &100u64, &wallet, &500i128, &2_000u64);
+    assert_eq!(res2, Err(Ok(Error::NotAuthorized)));
 }

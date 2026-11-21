@@ -2551,6 +2551,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "stellarcade-round-vouchers"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "stellarcade-season-rewards-vault"
 version = "0.1.0"
 dependencies = [
@@ -2601,6 +2608,13 @@ dependencies = [
 
 [[package]]
 name = "stellarcade-sponsorship-ledger"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellarcade-squad-match"
 version = "0.1.0"
 dependencies = [
  "soroban-sdk",
@@ -2705,6 +2719,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "stellarcade-upgrade-mechanism"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "stellarcade-vault-claims"
 version = "0.1.0"
 dependencies = [
@@ -2734,6 +2755,13 @@ dependencies = [
 
 [[package]]
 name = "stellarcade-voucher-minter"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellarcade-wallet-claims-v2"
 version = "0.1.0"
 dependencies = [
  "soroban-sdk",

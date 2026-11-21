@@ -175,11 +175,7 @@ impl RoundVouchers {
             redeemed: voucher.redeemed,
             paused: round.paused,
             now,
-            seconds_until_redeemable: if now < round.redeemable_after {
-                round.redeemable_after - now
-            } else {
-                0
-            },
+            seconds_until_redeemable: round.redeemable_after.saturating_sub(now),
         }
     }
 }

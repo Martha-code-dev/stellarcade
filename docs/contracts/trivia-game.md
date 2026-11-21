@@ -1,5 +1,7 @@
 # trivia-game
 
+Input for `configure_round`; carries the round's question-set metadata.
+
 ## Public Methods
 
 ### `init`
@@ -24,7 +26,7 @@ pub fn init(env: Env, admin: Address) -> Result<(), Error>
 Configure a round and its question-set metadata.
 
 ```rust
-pub fn configure_round(env: Env, admin: Address, round_id: u64, question_set_id: u64, question_count: u32, category: String, difficulty: u32, starts_at: u64, ends_at: u64) -> Result<(), Error>
+pub fn configure_round(env: Env, admin: Address, config: RoundConfig) -> Result<(), Error>
 ```
 
 #### Parameters
@@ -33,13 +35,7 @@ pub fn configure_round(env: Env, admin: Address, round_id: u64, question_set_id:
 |------|------|
 | `env` | `Env` |
 | `admin` | `Address` |
-| `round_id` | `u64` |
-| `question_set_id` | `u64` |
-| `question_count` | `u32` |
-| `category` | `String` |
-| `difficulty` | `u32` |
-| `starts_at` | `u64` |
-| `ends_at` | `u64` |
+| `config` | `RoundConfig` |
 
 #### Return Type
 

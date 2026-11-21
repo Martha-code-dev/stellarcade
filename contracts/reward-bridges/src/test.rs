@@ -4,7 +4,12 @@ use soroban_sdk::{testutils::Address as _, vec, Address, Env};
 
 use crate::{BridgeEntry, RewardBridges, RewardBridgesClient};
 
-fn setup() -> (Env, Address, soroban_sdk::Address, RewardBridgesClient<'static>) {
+fn setup() -> (
+    Env,
+    Address,
+    soroban_sdk::Address,
+    RewardBridgesClient<'static>,
+) {
     let env = Env::default();
     let admin = Address::generate(&env);
     let id = env.register(RewardBridges, ());
@@ -19,8 +24,20 @@ fn bridge_queue_summary_success_path() {
     let (env, admin, _id, client) = setup();
     let entries = vec![
         &env,
-        BridgeEntry { entry_id: 1, amount: 500, settled: false, queued_at: 0, settle_after: 100 },
-        BridgeEntry { entry_id: 2, amount: 300, settled: false, queued_at: 0, settle_after: 200 },
+        BridgeEntry {
+            entry_id: 1,
+            amount: 500,
+            settled: false,
+            queued_at: 0,
+            settle_after: 100,
+        },
+        BridgeEntry {
+            entry_id: 2,
+            amount: 300,
+            settled: false,
+            queued_at: 0,
+            settle_after: 200,
+        },
     ];
     client.enqueue(&admin, &entries);
     client.settle(&1);
@@ -47,8 +64,20 @@ fn settlement_gap_with_pending_entries() {
     // ledger timestamp is 0; settle_after=500 → 500s gap
     let entries = vec![
         &env,
-        BridgeEntry { entry_id: 10, amount: 100, settled: false, queued_at: 0, settle_after: 500 },
-        BridgeEntry { entry_id: 11, amount: 200, settled: false, queued_at: 0, settle_after: 800 },
+        BridgeEntry {
+            entry_id: 10,
+            amount: 100,
+            settled: false,
+            queued_at: 0,
+            settle_after: 500,
+        },
+        BridgeEntry {
+            entry_id: 11,
+            amount: 200,
+            settled: false,
+            queued_at: 0,
+            settle_after: 800,
+        },
     ];
     client.enqueue(&admin, &entries);
 

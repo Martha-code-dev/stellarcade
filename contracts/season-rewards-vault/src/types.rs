@@ -1,6 +1,4 @@
-#![no_std]
-
-use soroban_sdk::{contracttype, Address, Env, String, Vec};
+use soroban_sdk::{contracttype, Address, String, Vec};
 
 // Types for season-rewards-vault contract
 

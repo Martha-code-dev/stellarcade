@@ -50,6 +50,19 @@ pub struct RoundData {
     pub status: RoundStatus,
 }
 
+/// Input for `configure_round`; carries the round's question-set metadata.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RoundConfig {
+    pub round_id: u64,
+    pub question_set_id: u64,
+    pub question_count: u32,
+    pub category: String,
+    pub difficulty: u32,
+    pub starts_at: u64,
+    pub ends_at: u64,
+}
+
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct QuestionSetMetadata {
@@ -94,17 +107,17 @@ impl TriviaGame {
     }
 
     /// Configure a round and its question-set metadata.
-    pub fn configure_round(
-        env: Env,
-        admin: Address,
-        round_id: u64,
-        question_set_id: u64,
-        question_count: u32,
-        category: String,
-        difficulty: u32,
-        starts_at: u64,
-        ends_at: u64,
-    ) -> Result<(), Error> {
+    pub fn configure_round(env: Env, admin: Address, config: RoundConfig) -> Result<(), Error> {
+        let RoundConfig {
+            round_id,
+            question_set_id,
+            question_count,
+            category,
+            difficulty,
+            starts_at,
+            ends_at,
+        } = config;
+
         require_admin(&env, &admin)?;
 
         if round_id == 0 || question_set_id == 0 || question_count == 0 || ends_at <= starts_at {
@@ -377,9 +390,16 @@ mod test {
         env.mock_all_auths();
 
         let category = String::from_str(&env, "general");
-        client.configure_round(
-            &admin, &7u64, &42u64, &12u32, &category, &3u32, &1_000u64, &2_000u64,
-        );
+        let config = RoundConfig {
+            round_id: 7,
+            question_set_id: 42,
+            question_count: 12,
+            category: category.clone(),
+            difficulty: 3,
+            starts_at: 1_000,
+            ends_at: 2_000,
+        };
+        client.configure_round(&admin, &config);
 
         let metadata = client.question_set_metadata(&7u64);
         assert_eq!(metadata.round_id, 7);
@@ -399,9 +419,16 @@ mod test {
         env.mock_all_auths();
 
         let category = String::from_str(&env, "arcade");
-        client.configure_round(
-            &admin, &9u64, &77u64, &8u32, &category, &2u32, &1_000u64, &2_000u64,
-        );
+        let config = RoundConfig {
+            round_id: 9,
+            question_set_id: 77,
+            question_count: 8,
+            category,
+            difficulty: 2,
+            starts_at: 1_000,
+            ends_at: 2_000,
+        };
+        client.configure_round(&admin, &config);
         client.activate_round(&admin, &9u64);
 
         set_time(&env, 1_500);

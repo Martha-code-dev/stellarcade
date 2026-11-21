@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { I18nProvider } from "../i18n/provider";
 
@@ -59,5 +60,54 @@ describe("Breadcrumbs", () => {
     const current = screen.getByText("c");
     expect(current).toHaveAttribute("aria-current", "page");
     expect(current).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("renders exactly one anchor per navigable crumb and never nests anchors", () => {
+    mockUsePathname.mockReturnValue("/games/coin-flip/history");
+    const { container } = renderBreadcrumbs();
+
+    // "games" and "coin-flip" are navigable; "history" is the current page and
+    // renders a span, not an anchor.
+    const anchors = container.querySelectorAll("nav a");
+    expect(anchors).toHaveLength(2);
+    // A nested <a><a> would be invalid HTML and the source of the hydration
+    // errors this issue fixes.
+    expect(container.querySelector("a a")).toBeNull();
+
+    expect(screen.getByRole("link", { name: "Games Arena" })).toHaveAttribute("href", "/games");
+    expect(screen.getByRole("link", { name: "coin flip" })).toHaveAttribute(
+      "href",
+      "/games/coin-flip",
+    );
+  });
+
+  it("keeps each navigable crumb reachable by keyboard in document order", async () => {
+    mockUsePathname.mockReturnValue("/games/coin-flip");
+    renderBreadcrumbs();
+
+    const user = userEvent.setup();
+    const games = screen.getByRole("link", { name: "Games Arena" });
+
+    await user.tab();
+    expect(games).toHaveFocus();
+  });
+
+  it("emits no nested-anchor or hydration diagnostics while rendering", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      mockUsePathname.mockReturnValue("/games/coin-flip/history");
+      renderBreadcrumbs();
+
+      const nesting = errorSpy.mock.calls.filter((call) =>
+        call.some(
+          (arg) =>
+            typeof arg === "string" &&
+            (/cannot be a descendant/i.test(arg) || /hydration/i.test(arg)),
+        ),
+      );
+      expect(nesting).toEqual([]);
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 });

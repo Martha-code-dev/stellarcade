@@ -9,6 +9,11 @@
  *   RATE_LIMIT_AUTH_WINDOW   — window in seconds for auth routes (default: 60)
  *   RATE_LIMIT_GAMES_MAX     — max requests for game routes (default: 60)
  *   RATE_LIMIT_GAMES_WINDOW  — window in seconds for game routes (default: 60)
+ *
+ * Failure modes are a deliberate per-policy choice (`onStoreError`):
+ *   auth   -> deny  (fail closed, 503; brute-force targets)
+ *   wallet -> allow (fail open, availability over enforcement)
+ *   games  -> allow (fail open, read-only routes)
  */
 const { client } = require('../config/redis');
 const logger = require('../utils/logger');
@@ -17,14 +22,17 @@ const policies = {
   wallet: {
     max: () => parseInt(process.env.RATE_LIMIT_WALLET_MAX, 10) || 10,
     window: () => parseInt(process.env.RATE_LIMIT_WALLET_WINDOW, 10) || 60,
+    onStoreError: 'allow',
   },
   auth: {
     max: () => parseInt(process.env.RATE_LIMIT_AUTH_MAX, 10) || 20,
     window: () => parseInt(process.env.RATE_LIMIT_AUTH_WINDOW, 10) || 60,
+    onStoreError: 'deny',
   },
   games: {
     max: () => parseInt(process.env.RATE_LIMIT_GAMES_MAX, 10) || 60,
     window: () => parseInt(process.env.RATE_LIMIT_GAMES_WINDOW, 10) || 60,
+    onStoreError: 'allow',
   },
 };
 
@@ -73,7 +81,15 @@ const rateLimit = (policyName) => {
 
       next();
     } catch (error) {
-      logger.error('[RateLimit] Redis error, allowing request through:', error);
+      logger.error(`[RateLimit] Redis error for policy ${policyName}:`, error);
+      if (policy.onStoreError === 'deny') {
+        return res.status(503).json({
+          error: {
+            message: 'Rate limiting is temporarily unavailable. Please try again later.',
+            code: 'RATE_LIMIT_UNAVAILABLE',
+          },
+        });
+      }
       next();
     }
   };

@@ -1,4 +1,5 @@
 #![no_std]
+#![allow(clippy::too_many_arguments)]
 
 mod storage;
 mod types;
@@ -147,7 +148,7 @@ fn require_admin(env: &Env, admin: &Address) {
         .instance()
         .get(&DataKey::Admin)
         .expect("Not initialized");
-    assert!(stored == *admin, "Unauthorized");
+    assert_eq!(stored, *admin, "Unauthorized");
 }
 
 #[cfg(test)]

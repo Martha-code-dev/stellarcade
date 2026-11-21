@@ -3,15 +3,12 @@
 mod storage;
 mod types;
 
-use soroban_sdk::{contract, contractimpl, contracttype, contracterror, Address, Env, Symbol};
+use soroban_sdk::{contract, contracterror, contractimpl, contracttype, Address, Env};
 
 pub use types::{
     BracketData, BracketHealthData, BracketHealthSummary, LadderRankingSnapshot, PromotionCutoff,
     TierCutoff,
 };
-
-const BUMP_AMOUNT: u32 = 518_400;
-const LIFETIME_THRESHOLD: u32 = BUMP_AMOUNT / 2;
 
 #[contracttype]
 #[derive(Clone)]
@@ -27,6 +24,7 @@ pub enum DataKey {
 pub enum Error {
     NotInitialized = 1,
     BracketNotFound = 2,
+    Unauthorized = 3,
 }
 
 #[contract]
@@ -38,13 +36,36 @@ impl ChallengeLadder {
         if env.storage().instance().has(&DataKey::Admin) {
             return Err(Error::NotInitialized);
         }
+        admin.require_auth();
         env.storage().instance().set(&DataKey::Admin, &admin);
+        Ok(())
+    }
+
+    pub fn set_bracket(
+        env: Env,
+        admin: Address,
+        bracket_id: u32,
+        data: BracketData,
+    ) -> Result<(), Error> {
+        require_admin(&env, &admin)?;
+        storage::set_bracket_data(&env, bracket_id, &data);
+        Ok(())
+    }
+
+    pub fn set_bracket_health(
+        env: Env,
+        admin: Address,
+        bracket_id: u32,
+        health: BracketHealthData,
+    ) -> Result<(), Error> {
+        require_admin(&env, &admin)?;
+        storage::set_bracket_health_data(&env, bracket_id, &health);
         Ok(())
     }
 
     /// Returns a summary of bracket health including player counts and activity levels.
     pub fn bracket_health_summary(env: Env, bracket_id: u32) -> BracketHealthSummary {
-        match env.storage().instance().get::<DataKey, BracketHealthData>(&DataKey::BracketHealth(bracket_id)) {
+        match storage::get_bracket_health_data(&env, bracket_id) {
             Some(health_data) => BracketHealthSummary {
                 bracket_id,
                 exists: true,
@@ -116,7 +137,7 @@ impl ChallengeLadder {
 
     /// Returns the promotion cutoff details for a bracket.
     pub fn promotion_cutoff(env: Env, bracket_id: u32) -> PromotionCutoff {
-        match env.storage().instance().get::<DataKey, BracketData>(&DataKey::Bracket(bracket_id)) {
+        match storage::get_bracket_data(&env, bracket_id) {
             Some(bracket_data) => PromotionCutoff {
                 bracket_id,
                 exists: true,
@@ -133,6 +154,15 @@ impl ChallengeLadder {
             },
         }
     }
+}
+
+fn require_admin(env: &Env, admin: &Address) -> Result<(), Error> {
+    admin.require_auth();
+    let stored_admin = storage::get_admin(env).ok_or(Error::NotInitialized)?;
+    if stored_admin != *admin {
+        return Err(Error::Unauthorized);
+    }
+    Ok(())
 }
 
 #[cfg(test)]

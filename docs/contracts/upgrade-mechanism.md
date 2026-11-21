@@ -173,31 +173,3 @@ pub fn get_release(env: Env, version: u32) -> Result<Option<ReleaseRecord>, Erro
 
 `Result<Option<ReleaseRecord>, Error>`
 
-### `set_ready`
-```rust
-pub fn set_ready(env: Env, ready: bool)
-```
-
-#### Parameters
-
-| Name | Type |
-|------|------|
-| `env` | `Env` |
-| `ready` | `bool` |
-
-### `is_release_ready`
-```rust
-pub fn is_release_ready(env: Env, _suite: Symbol) -> bool
-```
-
-#### Parameters
-
-| Name | Type |
-|------|------|
-| `env` | `Env` |
-| `_suite` | `Symbol` |
-
-#### Return Type
-
-`bool`
-

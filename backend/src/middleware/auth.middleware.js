@@ -50,4 +50,33 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
+/**
+ * Authenticates when credentials are present but never rejects an anonymous
+ * request. Used on public profile reads where an owner may optionally send a
+ * token to unlock linked-account detail, while everyone else gets the public
+ * allowlist.
+ */
+const optionalAuthMiddleware = (req, _res, next) => {
+  const authorization = req.headers.authorization;
+  req.user = null;
+
+  if (!authorization || !process.env.JWT_SECRET) {
+    return next();
+  }
+
+  const [scheme, token] = authorization.split(' ');
+  if (!scheme || scheme.toLowerCase() !== 'bearer' || !token) {
+    return next();
+  }
+
+  try {
+    req.user = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+  } catch {
+    // A malformed or expired token on a public route is treated as anonymous.
+    req.user = null;
+  }
+  return next();
+};
+
 module.exports = authMiddleware;
+module.exports.optionalAuth = optionalAuthMiddleware;

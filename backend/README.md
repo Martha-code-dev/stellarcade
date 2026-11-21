@@ -159,6 +159,38 @@ If no version is specified, the API defaults to `v1`.
 
 See [API Documentation](../docs/API_DOCUMENTATION.md) for complete endpoint reference.
 
+### Webhook replay protection
+
+Webhook requests carry `x-webhook-signature: t=<unix-seconds>,v1=<hex-hmac>`.
+The signature covers `<timestamp>.<raw-body>` and is accepted only inside the
+timestamp tolerance window (`WEBHOOK_SIGNATURE_TOLERANCE_SEC`, default 300
+seconds).
+
+The replay guard reserves the exact timestamp and signature pair with an
+atomic `SET ... NX PX` in Redis, using the tolerance window as the TTL. The
+reservation happens only after the signature is verified, so a bad signature
+or an expired timestamp never consumes the slot for a later valid delivery.
+
+A `403 Webhook Replay Detected` response means that exact signed payload was
+already accepted. Do not retry the same signature; it will keep returning 403
+until the TTL expires. If the original handling failed and the sender needs to
+retry, send a new delivery with a fresh timestamp and signature. A `401`
+response means the signature is invalid and should not be retried without
+fixing the signing secret or payload.
+
+Multi-instance deployments must have Redis available for the guard to be
+shared. Without Redis, the guard falls back to process-local memory, which
+still protects a single instance but cannot see requests handled by another
+one.
+
+### Audit metadata redaction
+
+Audit metadata keys are normalized before the sensitive-key check: lowercase
+with non-alphanumeric characters removed. `Authorization`, `authorization`,
+`private_key`, `private-key` and `privateKey` therefore all redact to
+`[REDACTED]`, including inside nested objects and arrays. Non-sensitive keys
+are preserved.
+
 ## 🐳 Docker
 
 Run the backend in Docker:

@@ -1,8 +1,6 @@
-#![cfg(test)]
-
 use super::*;
-use soroban_sdk::testutils::Address as _;
-use soroban_sdk::{vec, Address, Env};
+use soroban_sdk::testutils::{Address as _, Ledger as _};
+use soroban_sdk::{Address, Env};
 
 #[test]
 fn test_init() {
@@ -47,7 +45,7 @@ fn test_create_lock_success() {
     let current_ledger = env.ledger().sequence();
     let unlock_ledger = current_ledger + 100;
 
-    let lock_id = client.create_lock(&beneficiary, &1000_i128, &(unlock_ledger as u32));
+    let lock_id = client.create_lock(&beneficiary, &1000_i128, &unlock_ledger);
     assert_eq!(lock_id, 1);
 }
 
@@ -67,7 +65,7 @@ fn test_create_lock_invalid_amount() {
     let current_ledger = env.ledger().sequence();
     let unlock_ledger = current_ledger + 100;
 
-    client.create_lock(&beneficiary, &0, &(unlock_ledger as u32));
+    client.create_lock(&beneficiary, &0, &unlock_ledger);
 }
 
 #[test]
@@ -94,6 +92,7 @@ fn test_get_balance_lock_summary_empty() {
 fn test_get_balance_lock_summary_with_locks() {
     let env = Env::default();
     env.mock_all_auths();
+    env.ledger().set_sequence_number(100);
 
     let admin = Address::generate(&env);
     let beneficiary = Address::generate(&env);
@@ -104,10 +103,11 @@ fn test_get_balance_lock_summary_with_locks() {
 
     let current_ledger = env.ledger().sequence();
     let unlock_ledger_future = current_ledger + 100;
-    let unlock_ledger_past = current_ledger - 10; // Already unlockable
+    let unlock_ledger_past = current_ledger;
 
-    client.create_lock(&beneficiary, &1000, &(unlock_ledger_future as u32));
-    client.create_lock(&beneficiary, &500, &(unlock_ledger_past as u32));
+    client.create_lock(&beneficiary, &1000, &unlock_ledger_future);
+    client.create_lock(&beneficiary, &500, &unlock_ledger_past);
+    env.ledger().set_sequence_number(current_ledger + 50);
 
     let summary = client.get_balance_lock_summary(&beneficiary);
 
@@ -129,7 +129,7 @@ fn test_get_unlock_readiness_locked() {
 
     client.init(&admin);
 
-    let current_ledger = env.ledger().sequence() as u32;
+    let current_ledger = env.ledger().sequence();
     let unlock_ledger = current_ledger + 100;
 
     let lock_id = client.create_lock(&beneficiary, &1000, &unlock_ledger);
@@ -145,6 +145,7 @@ fn test_get_unlock_readiness_locked() {
 fn test_get_unlock_readiness_ready() {
     let env = Env::default();
     env.mock_all_auths();
+    env.ledger().set_sequence_number(100);
 
     let admin = Address::generate(&env);
     let beneficiary = Address::generate(&env);
@@ -153,10 +154,11 @@ fn test_get_unlock_readiness_ready() {
 
     client.init(&admin);
 
-    let current_ledger = env.ledger().sequence() as u32;
-    let unlock_ledger = current_ledger - 10; // Already ready
+    let current_ledger = env.ledger().sequence();
+    let unlock_ledger = current_ledger + 10;
 
     let lock_id = client.create_lock(&beneficiary, &1000, &unlock_ledger);
+    env.ledger().set_sequence_number(unlock_ledger);
     let readiness = client.get_unlock_readiness(&beneficiary, &lock_id);
 
     assert_eq!(readiness.status, LockStatus::ReadyToUnlock);
@@ -188,6 +190,7 @@ fn test_get_unlock_readiness_missing_lock() {
 fn test_claim_lock_success() {
     let env = Env::default();
     env.mock_all_auths();
+    env.ledger().set_sequence_number(100);
 
     let admin = Address::generate(&env);
     let beneficiary = Address::generate(&env);
@@ -196,10 +199,11 @@ fn test_claim_lock_success() {
 
     client.init(&admin);
 
-    let current_ledger = env.ledger().sequence() as u32;
-    let unlock_ledger = current_ledger - 10; // Already ready
+    let current_ledger = env.ledger().sequence();
+    let unlock_ledger = current_ledger + 10;
 
     let lock_id = client.create_lock(&beneficiary, &1000, &unlock_ledger);
+    env.ledger().set_sequence_number(unlock_ledger);
 
     let amount = client.claim_lock(&beneficiary, &lock_id);
     assert_eq!(amount, 1000);
@@ -222,7 +226,7 @@ fn test_claim_lock_not_ready() {
 
     client.init(&admin);
 
-    let current_ledger = env.ledger().sequence() as u32;
+    let current_ledger = env.ledger().sequence();
     let unlock_ledger = current_ledger + 100; // Not ready yet
 
     let lock_id = client.create_lock(&beneficiary, &1000, &unlock_ledger);
@@ -241,12 +245,12 @@ fn test_list_locks_paginated() {
 
     client.init(&admin);
 
-    let current_ledger = env.ledger().sequence() as u32;
+    let current_ledger = env.ledger().sequence();
     let unlock_ledger = current_ledger + 100;
 
-    let id1 = client.create_lock(&beneficiary, &1000, &unlock_ledger);
-    let id2 = client.create_lock(&beneficiary, &2000, &unlock_ledger);
-    let id3 = client.create_lock(&beneficiary, &3000, &unlock_ledger);
+    client.create_lock(&beneficiary, &1000, &unlock_ledger);
+    client.create_lock(&beneficiary, &2000, &unlock_ledger);
+    client.create_lock(&beneficiary, &3000, &unlock_ledger);
 
     let page1 = client.list_locks(&beneficiary, &0, &2);
     assert_eq!(page1.len(), 2);
@@ -267,7 +271,7 @@ fn test_get_release_cooldown_in_cooldown() {
 
     client.init(&admin);
 
-    let current_ledger = env.ledger().sequence() as u32;
+    let current_ledger = env.ledger().sequence();
     let unlock_ledger = current_ledger + 100;
 
     let lock_id = client.create_lock(&beneficiary, &1000, &unlock_ledger);
@@ -283,6 +287,7 @@ fn test_get_release_cooldown_in_cooldown() {
 fn test_get_release_cooldown_ready() {
     let env = Env::default();
     env.mock_all_auths();
+    env.ledger().set_sequence_number(100);
 
     let admin = Address::generate(&env);
     let beneficiary = Address::generate(&env);
@@ -291,10 +296,11 @@ fn test_get_release_cooldown_ready() {
 
     client.init(&admin);
 
-    let current_ledger = env.ledger().sequence() as u32;
-    let unlock_ledger = current_ledger - 10;
+    let current_ledger = env.ledger().sequence();
+    let unlock_ledger = current_ledger + 10;
 
     let lock_id = client.create_lock(&beneficiary, &1000, &unlock_ledger);
+    env.ledger().set_sequence_number(unlock_ledger);
     let cooldown = client.get_release_cooldown(&beneficiary, &lock_id);
 
     assert!(!cooldown.is_in_cooldown);

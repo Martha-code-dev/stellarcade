@@ -1,8 +1,25 @@
-use soroban_sdk::Env;
+use soroban_sdk::{Env, Vec};
 
-use crate::{DataKey, types::BracketRecord};
+use crate::{types::BracketRecord, DataKey};
 
 pub const PERSISTENT_BUMP_LEDGERS: u32 = 518_400;
+
+/// IDs of brackets that have been written, kept in instance storage so the
+/// cross-bracket summary never has to probe absent persistent keys (#1591).
+pub fn get_bracket_ids(env: &Env) -> Vec<u32> {
+    env.storage()
+        .instance()
+        .get(&DataKey::BracketIds)
+        .unwrap_or_else(|| Vec::new(env))
+}
+
+pub fn add_bracket_id(env: &Env, bracket_id: u32) {
+    let mut ids = get_bracket_ids(env);
+    if !ids.contains(bracket_id) {
+        ids.push_back(bracket_id);
+        env.storage().instance().set(&DataKey::BracketIds, &ids);
+    }
+}
 
 pub fn get_bracket(env: &Env, bracket_id: u32) -> Option<BracketRecord> {
     env.storage()

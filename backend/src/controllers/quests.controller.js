@@ -20,6 +20,24 @@ const getQuests = async (req, res, next) => {
   }
 };
 
+const postDailyCheckIn = async (req, res, next) => {
+  try {
+    const userId = req.user && req.user.id;
+    if (!userId) {
+      const error = new Error('Authenticated user is required.');
+      error.statusCode = 401;
+      error.code = 'UNAUTHORIZED';
+      throw error;
+    }
+
+    const quest = await questService.checkInDaily(userId);
+    res.status(200).json({ quest });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getQuests,
+  postDailyCheckIn,
 };

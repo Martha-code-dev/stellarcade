@@ -1,6 +1,9 @@
 packages:
   - "apps/*"
   - "packages/*"
+  # Shipped dev tools are workspace members too. CI builds, typechecks and
+  # tests each one (see scripts/workspace_tools.mjs) so they cannot rot.
+  - "tools/*"
   - "tools/*"
 allowBuilds:
   esbuild: true

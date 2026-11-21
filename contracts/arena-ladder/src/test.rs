@@ -1,6 +1,9 @@
 #![cfg(test)]
 
-use soroban_sdk::{testutils::Address as _, Address, Env};
+use soroban_sdk::{
+    testutils::{Address as _, Ledger as _},
+    Address, Env,
+};
 
 use super::*;
 
@@ -46,9 +49,7 @@ fn test_bracket_pressure_snapshot_critical() {
     let (client, admin) = setup(&env);
 
     // 4 players, threshold=8 → critical (4 <= 8)
-    client.upsert_bracket(
-        &admin, &2, &4, &8, &1200, &900_000, &950_000, &5, &true,
-    );
+    client.upsert_bracket(&admin, &2, &4, &8, &1200, &900_000, &950_000, &5, &true);
 
     let snap = client.bracket_pressure_snapshot(&2);
     assert!(snap.exists);
@@ -82,9 +83,7 @@ fn test_promotion_window_open() {
     let env = Env::default();
     let (client, admin) = setup(&env);
 
-    client.upsert_bracket(
-        &admin, &3, &16, &4, &500, &1_000_000, &1_200_000, &5, &true,
-    );
+    client.upsert_bracket(&admin, &3, &16, &4, &500, &1_000_000, &1_200_000, &5, &true);
 
     let window = client.promotion_window(&3);
     assert!(window.exists);
@@ -104,9 +103,7 @@ fn test_promotion_window_closed() {
     let env = Env::default();
     let (client, admin) = setup(&env);
 
-    client.upsert_bracket(
-        &admin, &4, &8, &4, &300, &800_000, &900_000, &3, &false,
-    );
+    client.upsert_bracket(&admin, &4, &8, &4, &300, &800_000, &900_000, &3, &false);
 
     let window = client.promotion_window(&4);
     assert!(window.exists);
@@ -143,15 +140,16 @@ fn test_arena_ranking_summary() {
     client.upsert_bracket(
         &admin, &1, &32, &8, &750, &1_000_000, &1_100_000, &10, &true,
     );
-    client.upsert_bracket(
-        &admin, &2, &4, &8, &1200, &900_000, &950_000, &5, &false,
-    );
+    client.upsert_bracket(&admin, &2, &4, &8, &1200, &900_000, &950_000, &5, &false);
 
     let summary = client.arena_ranking_summary();
     assert_eq!(summary.total_brackets, 2);
     assert_eq!(summary.total_players, 36);
     assert_eq!(summary.active_promotions, 1);
     assert_eq!(summary.critical_brackets, 1);
+    // (750 + 1200) / 2 = 975; proves the checked_div average, not just that
+    // the summary loads (#1591).
+    assert_eq!(summary.average_pressure_score, 975);
 }
 
 // ---------------------------------------------------------------------------
@@ -180,9 +178,11 @@ fn test_season_cutoff_accessor_active() {
     let env = Env::default();
     let (client, admin) = setup(&env);
 
-    let current_ledger = env.ledger().sequence() as u32;
+    let current_ledger = env.ledger().sequence();
     let cutoff_ledger = current_ledger + 1000;
-    client.set_season_cutoff(&admin, &1, &cutoff_ledger).unwrap();
+    // SDK 25 client methods for Result<(), Error> return () on success; the
+    // old .unwrap() was the E0599 that broke this crate's test target (#1591).
+    client.set_season_cutoff(&admin, &1, &cutoff_ledger);
 
     let accessor = client.season_cutoff_accessor(&1);
     assert_eq!(accessor.season_id, 1);
@@ -200,9 +200,12 @@ fn test_season_cutoff_accessor_expired() {
     let env = Env::default();
     let (client, admin) = setup(&env);
 
-    let current_ledger = env.ledger().sequence() as u32;
+    // Start above zero so the "ten ledgers ago" cutoff is representable; the
+    // old test underflowed in the test body itself at the default ledger 0.
+    env.ledger().with_mut(|li| li.sequence_number = 100);
+    let current_ledger = env.ledger().sequence();
     let cutoff_ledger = current_ledger - 10;
-    client.set_season_cutoff(&admin, &2, &cutoff_ledger).unwrap();
+    client.set_season_cutoff(&admin, &2, &cutoff_ledger);
 
     let accessor = client.season_cutoff_accessor(&2);
     assert!(!accessor.is_season_active);
@@ -223,4 +226,40 @@ fn test_season_cutoff_accessor_missing() {
     assert_eq!(accessor.cutoff_ledger, 0);
     assert!(!accessor.is_season_active);
     assert_eq!(accessor.ledgers_until_cutoff, 0);
+}
+
+// Boundary for the saturating subtraction used in #1591: when the cutoff
+// equals the current ledger the season is already inactive and no ledgers
+// remain, with no underflow.
+#[test]
+fn test_season_cutoff_accessor_exactly_at_cutoff() {
+    let env = Env::default();
+    let (client, admin) = setup(&env);
+
+    let current_ledger = env.ledger().sequence();
+    client.set_season_cutoff(&admin, &5, &current_ledger);
+
+    let accessor = client.season_cutoff_accessor(&5);
+    assert_eq!(accessor.cutoff_ledger, current_ledger);
+    assert_eq!(accessor.current_ledger, current_ledger);
+    assert!(!accessor.is_season_active);
+    assert_eq!(accessor.ledgers_until_cutoff, 0);
+}
+
+// Authorization: a non-admin (even with auth mocked) cannot mutate bracket or
+// season state. This exercises the contract's own admin check, not a stub.
+#[test]
+fn test_non_admin_cannot_mutate_ladder_state() {
+    let env = Env::default();
+    let (client, _admin) = setup(&env);
+    let intruder = Address::generate(&env);
+
+    let bracket =
+        client.try_upsert_bracket(&intruder, &7, &10, &2, &100, &1_000, &2_000, &3, &true);
+    assert_eq!(bracket, Err(Ok(Error::NotAuthorized)));
+    assert!(!client.bracket_pressure_snapshot(&7).exists);
+
+    let cutoff = client.try_set_season_cutoff(&intruder, &7, &5_000);
+    assert_eq!(cutoff, Err(Ok(Error::NotAuthorized)));
+    assert_eq!(client.season_cutoff_accessor(&7).cutoff_ledger, 0);
 }

@@ -37,7 +37,15 @@ const routeDocs = [
         },
       },
       400: {
-        description: 'Missing address',
+        description: 'Missing or malformed address',
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/ErrorEnvelope' },
+          },
+        },
+      },
+      503: {
+        description: 'Rate-limit store unavailable (auth policy fails closed)',
         content: {
           'application/json': {
             schema: { $ref: '#/components/schemas/ErrorEnvelope' },
@@ -108,7 +116,8 @@ const routeDocs = [
         },
       },
       503: {
-        description: 'Login is not configured on this deployment (JWT_SECRET unset)',
+        description:
+          'Login is not configured on this deployment (JWT_SECRET unset), or the rate-limit store is unavailable (auth policy fails closed)',
         content: {
           'application/json': {
             schema: { $ref: '#/components/schemas/ErrorEnvelope' },

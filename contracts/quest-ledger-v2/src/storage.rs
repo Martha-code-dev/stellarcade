@@ -1,4 +1,3 @@
-#![no_std]
 
 use soroban_sdk::{Env, Vec};
 use crate::{DataKey, QuestCompletion, CompletionQueueSnapshot, RewardDelayAccessor};

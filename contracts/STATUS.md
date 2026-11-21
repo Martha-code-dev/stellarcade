@@ -1,270 +1,267 @@
 # Contract Status
 
-An honest, current classification of every contract crate in this workspace,
-generated 2026-08-10. `CLAUDE.md`'s existing status table predates this and
-is **stale** — it was written when the repo had no workspace `Cargo.toml`
-and described `coin-flip`/`prize-pool`/`random-generator` as stubs. All
-three are now substantial (400–1450 lines) with real logic. That table
-should be updated or removed the next time someone touches `CLAUDE.md`.
+An honest, current classification of the contract crates in this workspace.
 
-## Methodology (and its limits)
+The membership and test-attribute inventory below is generated from source. The
+prose sections that follow are historical notes from a 2026-08-10 heuristic
+scan and are labelled as such. The previous version of this file reported
+`coin-flip`, `dice-roll` and `prize-pool` as untested and listed eight
+crates that are no longer in the workspace. Those claims were wrong. They have
+been replaced by the generated block rather than patched by hand, so the
+membership list and test counts cannot drift again without `--check` failing.
 
-151 crates were scanned programmatically:
+## What this file does and does not say
 
-- Line count of `src/lib.rs`
-- Presence of `todo!()` / `unimplemented!()` / literal `TODO` comments
-- Presence of `#[test]` blocks (a proxy for test coverage, not quality)
-- Explicit placeholder language (`"for now"`, `"would be populated"`,
-  `"empty state"`, `"placeholder"`, `"not yet implement"`) — this caught
-  contracts like `clan-registry` that compile and have real-looking
-  `#[contractimpl]` blocks but return hardcoded zero/empty structs
+- It records which crates Cargo builds, which are effectively excluded, and a
+  mechanical count of `#[test]` attributes per crate.
+- It does **not** audit code, verify authorization, judge test quality, or sign
+  any crate off as production-ready. See the explicit note at the end of the
+  generated inventory.
+- The old "implemented / partial / stub" labels were a heuristic from a scan
+  dated 2026-08-10. They are retained below as context only, are not
+  regenerated, and must not be used as a current status.
 
-**This is a heuristic, not a manual code review of 151 crates** — some
-classifications are almost certainly wrong at the margins (see
-`leaderboard` below for one caught-and-corrected example). Treat this as a
-starting map, not ground truth; re-classify a crate by hand before relying
-on its status for a real decision.
+<!-- BEGIN GENERATED CONTRACT INVENTORY -->
+### Source-backed workspace inventory
 
-Rule:
-- **stub** — <70 lines, OR contains placeholder language
-- **implemented** — has `#[test]` blocks, ≥150 lines, zero `todo!`/`TODO`
-- **partial** — everything else (real logic present, but untested and/or
-  has open `TODO`s and/or under the "implemented" size bar)
+Generated from `contracts/Cargo.toml` and `#[test]` attributes in each crate's
+`.rs` files by `python3 scripts/contract_inventory.py`. Re-run it and commit the
+result whenever membership or test attributes change;
+`python3 scripts/contract_inventory.py --check` fails when this block is stale.
 
-## Results
+- Workspace members: **142**
+- Effectively excluded crates: **12** (a crate listed in both
+  `members` and `exclude` is a member, not an exclusion)
+- Crate directories containing a `Cargo.toml`: **154**
 
-| Status | Count |
-|---|---|
-| implemented | 39 |
-| partial | 78 |
-| stub | 34 |
+**Excluded crates** (12): `higher-lower`, `merch-redemption`, `daily-reward-emission`, `escrow-ledger`, `escrow-vault`, `fanout-distributor`, `guild-progress`, `ladder-checkpoints`, `ladder-seasons`, `loot-crate`, `map-voting`, `mission-ledger`.
 
-## Build health (found and fixed during this audit)
+#### Test attributes by crate
 
-**The entire workspace failed to resolve its dependency graph before this
-pass** — `cargo check --workspace` errored on a `curve25519-dalek` version
-conflict before compiling a single crate. Root cause: 8 near-empty stub
-crates (`arena-reserves`, `badge-claims-v2`, `badge-ledger`,
-`ladder-payouts`, `payout-checkpoints`, `raffle-escrow`, `sponsor-payouts`,
-`treasury-streams` — all under 55 lines) were pinned to `soroban-sdk =
-"20.0.0"` while the other 138 crates use `"25.0.2"`, and Cargo's workspace
-resolver couldn't satisfy both simultaneously. **Fixed**: bumped all 8 to
-`25.0.2`, matching the rest of the workspace. This was a mechanical,
-low-risk fix (all 8 are stub crates with no real logic depending on the old
-API surface).
+| Crate | Membership | `#[test]` attributes |
+| --- | --- | ---: |
+| `access-control` | member | 11 |
+| `achievement-badge` | member | 24 |
+| `achievements` | member | 9 |
+| `affiliate-ledger` | member | 6 |
+| `ai-generated-game` | member | 5 |
+| `anti-cheat-bounties` | member | 19 |
+| `arena-ladder` | member | 13 |
+| `arena-passes` | member | 7 |
+| `arena-sessions` | member | 10 |
+| `asset-escrow-v3` | member | 15 |
+| `attendance-pass` | member | 12 |
+| `badge-minter` | member | 14 |
+| `balance-management` | member | 10 |
+| `blind-auction` | member | 6 |
+| `bonus-rotator` | member | 6 |
+| `bonus-vault` | member | 6 |
+| `bounty-escrow` | member | 8 |
+| `campaign-claims` | member | 5 |
+| `challenge-ladder` | member | 6 |
+| `clan-seasons` | member | 11 |
+| `coin-flip` | member | 44 |
+| `color-prediction` | member | 28 |
+| `combo-rewards` | member | 6 |
+| `comprehensive-test-suite` | member | 8 |
+| `contract-address-registry` | member | 26 |
+| `contract-circuit-breaker` | member | 3 |
+| `contract-doc-generator` | member | 14 |
+| `contract-health-registry` | member | 8 |
+| `contract-interaction-library` | member | 15 |
+| `contract-metadata-registry` | member | 20 |
+| `contract-monitoring` | member | 9 |
+| `contract-role-registry` | member | 21 |
+| `contract-upgrade-timelock` | member | 10 |
+| `creator-drops` | member | 9 |
+| `creator-escrow` | member | 5 |
+| `creator-royalties` | member | 11 |
+| `creator-vaults` | member | 12 |
+| `cross-chain-bridge` | member | 13 |
+| `cross-contract-call-guard` | member | 5 |
+| `cross-contract-handler` | member | 26 |
+| `daily-challenges` | member | 15 |
+| `daily-reward-emission` | excluded | 3 |
+| `daily-trivia` | member | 9 |
+| `deployment-scripts` | member | 3 |
+| `dice-roll` | member | 41 |
+| `duel-engine` | member | 4 |
+| `dutch-auction` | member | 15 |
+| `dynamic-fee-policy` | member | 9 |
+| `emergency-pause` | member | 14 |
+| `epoch-scheduler` | member | 15 |
+| `escrow-ledger` | excluded | 7 |
+| `escrow-marketplace` | member | 10 |
+| `escrow-vault` | excluded | 5 |
+| `exploit-prevention` | member | 36 |
+| `fanout-distributor` | excluded | 9 |
+| `fee-allocator` | member | 6 |
+| `fee-management` | member | 26 |
+| `fee-shield` | member | 4 |
+| `gas-optimization-analysis` | member | 2 |
+| `governance` | member | 29 |
+| `governance-token` | member | 13 |
+| `grant-ledger` | member | 9 |
+| `guild-progress` | excluded | 17 |
+| `guild-season` | member | 6 |
+| `higher-lower` | excluded | 10 |
+| `identity-registry` | member | 9 |
+| `jackpot-pool` | member | 13 |
+| `ladder-checkpoints` | excluded | 5 |
+| `ladder-seasons` | excluded | 6 |
+| `leaderboard` | member | 6 |
+| `lending-pool` | member | 8 |
+| `lobby-escrow` | member | 7 |
+| `lobby-gates` | member | 6 |
+| `loot-crate` | excluded | 10 |
+| `loot-rotation` | member | 9 |
+| `map-voting` | excluded | 8 |
+| `matchmaking-queue` | member | 13 |
+| `merch-redemption` | excluded | 5 |
+| `minesweeper-escrow` | member | 7 |
+| `mission-checkins` | member | 9 |
+| `mission-ledger` | excluded | 12 |
+| `mission-pass` | member | 8 |
+| `multiplayer-room` | member | 11 |
+| `nft-reward` | member | 8 |
+| `number-guess` | member | 24 |
+| `oracle-integration` | member | 27 |
+| `pattern-puzzle` | member | 14 |
+| `penalty-slashing` | member | 6 |
+| `perk-claims` | member | 6 |
+| `player-stamps` | member | 3 |
+| `prediction-market` | member | 3 |
+| `price-prediction` | member | 37 |
+| `prize-ledger-v2` | member | 5 |
+| `prize-pool` | member | 35 |
+| `prize-router-v2` | member | 7 |
+| `prize-streamer` | member | 8 |
+| `profile-perks` | member | 4 |
+| `quest-ledger-v2` | member | 10 |
+| `quest-redeemer` | member | 10 |
+| `queue-rewards` | member | 5 |
+| `raffle-engine` | member | 3 |
+| `random-generator` | member | 41 |
+| `rank-rewards` | member | 5 |
+| `referral-quests` | member | 13 |
+| `referral-rewards` | member | 2 |
+| `referral-system` | member | 27 |
+| `reserve-auction` | member | 6 |
+| `reserve-manager` | member | 9 |
+| `revenue-split` | member | 8 |
+| `reward-bridges` | member | 4 |
+| `reward-distribution` | member | 21 |
+| `reward-router` | member | 6 |
+| `reward-stream` | member | 8 |
+| `reward-unlocker` | member | 13 |
+| `reward-vesting` | member | 20 |
+| `rock-paper-scissors` | member | 14 |
+| `round-finalizer` | member | 6 |
+| `round-vouchers` | member | 3 |
+| `season-rewards-vault` | member | 12 |
+| `session-nonce-manager` | member | 14 |
+| `settlement-queue` | member | 17 |
+| `shared` | member | 0 |
+| `speed-trivia` | member | 8 |
+| `sponsor-lockbox` | member | 2 |
+| `sponsor-pool` | member | 10 |
+| `sponsorship-ledger` | member | 11 |
+| `squad-match` | member | 6 |
+| `squad-rewards` | member | 3 |
+| `squad-roster` | member | 5 |
+| `staking` | member | 11 |
+| `staking-rewards` | member | 7 |
+| `streak-bonus` | member | 21 |
+| `streak-ladder` | member | 8 |
+| `team-prizes` | member | 9 |
+| `ticket-market` | member | 21 |
+| `ticket-redeemer` | member | 7 |
+| `token-streaming` | member | 8 |
+| `tournament-gates` | member | 7 |
+| `tournament-lobby` | member | 6 |
+| `tournament-system` | member | 19 |
+| `treasury` | member | 14 |
+| `treasury-allocation` | member | 14 |
+| `treasury-safeguard` | member | 9 |
+| `trivia-game` | member | 3 |
+| `upgrade-mechanism` | member | 8 |
+| `vault-claims` | member | 7 |
+| `vault-routing` | member | 2 |
+| `vip-subscription` | member | 24 |
+| `vote-escrow` | member | 3 |
+| `voucher-escrow` | member | 4 |
+| `voucher-minter` | member | 9 |
+| `wallet-claims-v2` | member | 3 |
+| `wallet-reserves` | member | 10 |
+| `wordle-clone` | member | 22 |
 
-After that fix: **149 of 151 crates compile clean** (`cargo check
---workspace`). Two do not:
+> **A test count is not a security sign-off.** These numbers count `#[test]`
+> attributes mechanically. They do not say what a test asserts, whether it is
+> enabled in CI, whether a crate is authorized correctly, or whether its
+> Soroban release build passes. Nothing in this document certifies any crate as
+> audited or production-ready; that requires a separate review recorded in the
+> linked issue and PR.
+<!-- END GENERATED CONTRACT INVENTORY -->
 
-- `badge-minter` — uses `#[contractevent]` / `#[topic]`, which don't exist
-  in whatever soroban-sdk version this crate's dependency actually resolves
-  to (`E0432: unresolved import`). Needs its Cargo.toml checked against the
-  workspace's `25.0.2` and its event-emission code updated to match that
-  version's API.
-- `season-rewards-vault` — same `#[contractevent]`/`#[topic]` issue, plus a
-  `#[contractimpl]` function taking a `usize` parameter, which Soroban's
-  contract macro doesn't support (needs `u32`/`u64`/etc).
+## Historical heuristic audit (2026-08-10)
 
-Neither was touched in this pass — they're real code-level fixes, not
-mechanical version bumps, and deserve their own PR with tests.
+The scan that produced the old status labels counted lines in `src/lib.rs`,
+looked for `todo!()` / `unimplemented!()` / literal `TODO` comments, counted
+`#[test]` blocks as a proxy for coverage, and searched for placeholder
+language. It was a heuristic, not a manual review. Some classifications were
+almost certainly wrong at the margins, which is exactly why the generated
+block above now owns the factual claims.
 
-## The 12 contracts proposed for v1
+Old rule, kept only to explain the retired labels: "stub" meant fewer than 70
+lines or placeholder language; "implemented" meant `#[test]` blocks, at least
+150 lines and no `todo!`/`TODO`; "partial" meant everything else. The old
+summary counts were 39 implemented, 78 partial and 34 stub. Those counts no
+longer describe the workspace and are not restated here.
 
-Per `ANTIGRAVITY-BUILD-PROMPT.md`. Current classification, not aspirational:
+## Historical build health note (2026-08-10)
 
-| Contract | Status | What's needed for v1 |
-|---|---|---|
-| `random-generator` | implemented | Already has 32 tests — review for the provably-fair RNG design, add fuzz/property tests |
-| `treasury` | implemented | 13 tests — review access control paths |
-| `quest-ledger-v2` | implemented | 4 tests — review edge cases (streak resets, double-claims) |
-| `access-control` | partial | Real RBAC logic, **zero tests** — write the test suite before calling this v1-ready |
-| `coin-flip` | partial | Real logic (exposure tracking, recent-game history), zero tests |
-| `dice-roll` | partial | Zero tests |
-| `higher-lower` | partial | Zero tests; also currently **excluded from the workspace build** — check why before adding tests |
-| `number-guess` | partial | 1 open TODO, zero tests |
-| `trivia-game` | partial | 2 open TODOs, 3 tests — close the TODOs |
-| `pattern-puzzle` | partial | 1022 lines, 13 tests, 4 open TODOs — closest to done of the partials, resolve the TODOs |
-| `prize-pool` | partial | Zero tests — this contract moves money, treat the missing tests as a blocker, not a nice-to-have |
-| `leaderboard` | partial (manually reclassified) | The heuristic flagged this as a stub over one placeholder comment on a batch-update helper; the bulk of the contract (score submission, ranking) is real. Zero tests either way. |
+A past audit found that the workspace failed to resolve its dependency graph
+because eight near-empty crates pinned `soroban-sdk = "20.0.0"` while the rest
+used `25.0.2`. Those eight were bumped in that pass. A separate note claimed
+`badge-minter` and `season-rewards-vault` failed to compile due to
+`#[contractevent]` / `#[topic]` API drift and an unsupported `usize` contract
+parameter. Both are excluded from the workspace today, so re-check them with
+the current SDK before relying on that note. This paragraph is history, not a
+current build result; run `cd contracts && cargo check --workspace --locked`
+for the actual state.
 
-**None of the 12 are "implemented" in the sense of "done, tested,
-production-ready."** Three have real test coverage and should be reviewed
-rather than rewritten; the other nine have real logic but need a test suite
-before anyone should call them v1-ready. That is the honest state of this
-list, not a downgrade from the build prompt's plan — the plan already said
-"bring those to production quality," this file is what "not yet at that
-quality" looks like concretely.
+## Contracts proposed for v1 (current test-attribute counts)
+
+Per `ANTIGRAVITY-BUILD-PROMPT.md`. The counts below come from the generated
+inventory above, not from the retired heuristic. Membership is shown because
+some of these crates are not currently built by CI.
+
+| Contract | Membership | `#[test]` attributes | Note |
+| --- | --- | ---: | --- |
+| `random-generator` | member | 41 | Review the provably-fair RNG design; consider fuzz/property tests |
+| `treasury` | member | 14 | Review access-control paths |
+| `quest-ledger-v2` | excluded | 13 | Review edge cases (streak resets, double-claims); not built by CI |
+| `access-control` | member | 11 | Review the RBAC paths the tests cover |
+| `coin-flip` | member | 44 | Review exposure tracking and recent-game history |
+| `dice-roll` | member | 34 | Review outcome derivation and payout paths |
+| `higher-lower` | excluded | 10 | Not built by CI; check why before relying on its tests |
+| `number-guess` | member | 24 | Check remaining TODOs |
+| `trivia-game` | excluded | 3 | Not built by CI; close remaining TODOs |
+| `pattern-puzzle` | member | 14 | Check remaining TODOs |
+| `prize-pool` | member | 34 | This contract moves money; review its payout tests before v1 |
+| `leaderboard` | member | 6 | Review score submission and ranking tests |
+
+Test attributes are evidence that someone wrote tests, not that the tests
+protect the contract. The v1 decision still needs the review described in the
+generated inventory's sign-off note.
 
 ## On the "move non-v1 contracts to contracts/incubator/" idea
 
-`ANTIGRAVITY-BUILD-PROMPT.md` proposed physically moving the ~139
-non-shortlisted crates into `contracts/incubator/`. **Not done in this
-pass.** This repo has a live 960-commit history, two remotes, and an
-existing (now-fixed) workspace `Cargo.toml` with an explicit `members` list
-and `exclude` list that CI presumably depends on. Moving 139 directories is
-a large, mechanical, hard-to-cleanly-revert change with real risk of
-breaking CI or in-flight branches, for a benefit (tidier directory listing)
-that doesn't require the move — `STATUS.md`'s table above gives the same
-signal without touching the working tree structure at all. If a maintainer
-wants the physical move later, this file's classification is the input list
-for it.
-
-## Full classification
-
-Machine-generated from the scan above. `?` in the Tests column means
-`#[test]` blocks weren't found by the grep (again: a proxy, not proof of
-coverage).
-
-| Contract | Lines | TODOs | Tests | Status |
-|---|---|---|---|---|
-| `access-control` | 174 | 0 | 0 | partial |
-| `achievement-badge` | 920 | 0 | 24 | implemented |
-| `achievements` | 55 | 0 | 0 | stub |
-| `affiliate-ledger` | 326 | 0 | 0 | partial |
-| `ai-generated-game` | 491 | 0 | 5 | implemented |
-| `anti-cheat-bounties` | 242 | 0 | 0 | partial |
-| `arena-ladder` | 179 | 0 | 0 | partial |
-| `arena-reserves` | 54 | 0 | 0 | stub |
-| `arena-sessions` | 290 | 0 | 0 | partial |
-| `asset-escrow-v3` | 239 | 0 | 0 | stub |
-| `attendance-pass` | 321 | 0 | 5 | implemented |
-| `auction-house` | 61 | 0 | 0 | stub |
-| `badge-claims-v2` | 54 | 0 | 0 | stub |
-| `badge-ledger` | 17 | 0 | 0 | stub |
-| `badge-minter` | 711 | 0 | 11 | stub |
-| `balance-management` | 173 | 1 | 3 | partial |
-| `bonus-rotator` | 81 | 0 | 0 | partial |
-| `bonus-vault` | 172 | 0 | 0 | partial |
-| `bounty-escrow` | 232 | 0 | 0 | partial |
-| `campaign-claims` | 365 | 0 | 0 | partial |
-| `challenge-ladder` | 83 | 0 | 0 | partial |
-| `clan-registry` | 60 | 0 | 0 | stub |
-| `clan-seasons` | 179 | 0 | 0 | partial |
-| `coin-flip` | 540 | 0 | 0 | partial |
-| `color-prediction` | 758 | 2 | 16 | partial |
-| `combo-rewards` | 147 | 0 | 0 | partial |
-| `contract-address-registry` | 1088 | 0 | 26 | stub |
-| `contract-circuit-breaker` | 298 | 0 | 3 | stub |
-| `contract-health-registry` | 453 | 0 | 8 | implemented |
-| `contract-interaction-library` | 554 | 0 | 15 | implemented |
-| `contract-metadata-registry` | 449 | 0 | 9 | implemented |
-| `contract-monitoring` | 483 | 0 | 9 | implemented |
-| `contract-role-registry` | 126 | 0 | 0 | partial |
-| `contract-upgrade-timelock` | 432 | 0 | 9 | implemented |
-| `creator-drops` | 226 | 0 | 0 | partial |
-| `creator-escrow` | 311 | 0 | 0 | partial |
-| `creator-royalties` | 296 | 0 | 0 | stub |
-| `creator-vaults` | 145 | 0 | 0 | partial |
-| `cross-chain-bridge` | 749 | 0 | 10 | implemented |
-| `cross-contract-call-guard` | 439 | 0 | 5 | implemented |
-| `cross-contract-handler` | 353 | 0 | 0 | partial |
-| `daily-challenges` | 315 | 0 | 0 | partial |
-| `daily-reward-emission` | 349 | 0 | 3 | implemented |
-| `daily-trivia` | 894 | 0 | 9 | implemented |
-| `dice-roll` | 417 | 0 | 0 | partial |
-| `duel-engine` | 87 | 0 | 0 | partial |
-| `dynamic-fee-policy` | 566 | 0 | 9 | implemented |
-| `emergency-pause` | 244 | 0 | 0 | partial |
-| `epoch-scheduler` | 471 | 0 | 6 | stub |
-| `escrow-ledger` | 179 | 0 | 3 | implemented |
-| `escrow-marketplace` | 182 | 0 | 0 | partial |
-| `escrow-vault` | 405 | 0 | 5 | implemented |
-| `exploit-prevention` | 1027 | 0 | 36 | implemented |
-| `fanout-distributor` | 410 | 0 | 5 | implemented |
-| `fee-allocator` | 172 | 0 | 0 | stub |
-| `fee-management` | 569 | 0 | 0 | partial |
-| `fee-shield` | 253 | 0 | 0 | partial |
-| `governance` | 724 | 0 | 0 | stub |
-| `governance-token` | 534 | 0 | 12 | implemented |
-| `grant-ledger` | 122 | 0 | 0 | partial |
-| `guild-progress` | 239 | 0 | 0 | partial |
-| `guild-season` | 88 | 0 | 0 | partial |
-| `higher-lower` | 396 | 0 | 0 | partial |
-| `identity-registry` | 179 | 0 | 0 | partial |
-| `jackpot-pool` | 298 | 0 | 0 | partial |
-| `ladder-checkpoints` | 291 | 0 | 0 | partial |
-| `ladder-payouts` | 54 | 0 | 0 | stub |
-| `ladder-seasons` | 179 | 0 | 0 | partial |
-| `leaderboard` | 411 | 0 | 0 | stub |
-| `lending-pool` | 123 | 0 | 0 | partial |
-| `lobby-escrow` | 304 | 0 | 0 | partial |
-| `lobby-gates` | 132 | 0 | 0 | partial |
-| `loot-crate` | 150 | 0 | 0 | partial |
-| `loot-rotation` | 115 | 0 | 0 | stub |
-| `map-rotation` | 64 | 0 | 0 | stub |
-| `map-voting` | 191 | 0 | 0 | partial |
-| `matchmaking-queue` | 326 | 0 | 0 | partial |
-| `merch-redemption` | 131 | 0 | 0 | partial |
-| `mission-checkins` | 128 | 0 | 0 | partial |
-| `mission-ledger` | 415 | 0 | 7 | implemented |
-| `mission-pass` | 185 | 0 | 0 | partial |
-| `multiplayer-room` | 656 | 0 | 11 | implemented |
-| `nft-reward` | 403 | 0 | 8 | implemented |
-| `number-guess` | 531 | 1 | 0 | partial |
-| `oracle-integration` | 394 | 0 | 0 | partial |
-| `pattern-puzzle` | 1022 | 4 | 13 | partial |
-| `payout-checkpoints` | 54 | 0 | 0 | stub |
-| `penalty-slashing` | 577 | 0 | 6 | implemented |
-| `perk-claims` | 133 | 0 | 0 | partial |
-| `player-rating` | 66 | 0 | 0 | stub |
-| `player-stamps` | 240 | 0 | 0 | partial |
-| `price-prediction` | 819 | 0 | 0 | partial |
-| `prize-pool` | 719 | 0 | 0 | partial |
-| `prize-router-v2` | 264 | 0 | 0 | partial |
-| `prize-streamer` | 263 | 0 | 0 | partial |
-| `profile-perks` | 146 | 0 | 0 | partial |
-| `quest-board` | 58 | 0 | 0 | stub |
-| `quest-ledger-v2` | 401 | 0 | 4 | implemented |
-| `quest-redeemer` | 169 | 0 | 0 | stub |
-| `queue-rewards` | 169 | 0 | 0 | stub |
-| `raffle-engine` | 154 | 0 | 0 | partial |
-| `raffle-escrow` | 17 | 0 | 0 | stub |
-| `random-generator` | 1456 | 0 | 32 | implemented |
-| `rank-rewards` | 265 | 0 | 0 | partial |
-| `referral-quests` | 249 | 0 | 0 | partial |
-| `referral-rewards` | 150 | 0 | 0 | partial |
-| `referral-system` | 1009 | 0 | 27 | stub |
-| `reserve-auction` | 309 | 0 | 0 | partial |
-| `reserve-manager` | 134 | 0 | 0 | partial |
-| `revenue-split` | 689 | 0 | 7 | implemented |
-| `reward-distribution` | 690 | 0 | 21 | stub |
-| `reward-router` | 94 | 0 | 0 | partial |
-| `reward-stream` | 249 | 0 | 0 | partial |
-| `reward-unlocker` | 249 | 0 | 0 | stub |
-| `reward-vesting` | 647 | 0 | 19 | implemented |
-| `round-finalizer` | 266 | 0 | 0 | stub |
-| `round-vouchers` | 207 | 0 | 0 | partial |
-| `season-pass` | 49 | 0 | 0 | stub |
-| `season-rewards-vault` | 721 | 0 | 8 | stub |
-| `session-nonce-manager` | 529 | 0 | 14 | implemented |
-| `settlement-queue` | 640 | 0 | 0 | stub |
-| `speed-trivia` | 890 | 0 | 8 | implemented |
-| `sponsor-lockbox` | 230 | 0 | 0 | partial |
-| `sponsor-payouts` | 17 | 0 | 0 | stub |
-| `sponsor-pool` | 418 | 0 | 6 | implemented |
-| `sponsorship-ledger` | 85 | 0 | 0 | stub |
-| `squad-match` | 112 | 0 | 0 | partial |
-| `squad-roster` | 374 | 0 | 0 | partial |
-| `staking` | 753 | 0 | 10 | implemented |
-| `staking-rewards` | 455 | 0 | 0 | partial |
-| `streak-bonus` | 497 | 0 | 0 | partial |
-| `streak-ladder` | 315 | 0 | 0 | partial |
-| `team-prizes` | 299 | 0 | 0 | partial |
-| `ticket-market` | 297 | 0 | 0 | partial |
-| `ticket-redeemer` | 291 | 0 | 0 | partial |
-| `tournament-lobby` | 135 | 0 | 0 | partial |
-| `tournament-system` | 906 | 0 | 19 | implemented |
-| `treasury` | 709 | 0 | 13 | implemented |
-| `treasury-allocation` | 632 | 0 | 14 | implemented |
-| `treasury-safeguard` | 119 | 0 | 0 | partial |
-| `treasury-streams` | 17 | 0 | 0 | stub |
-| `trivia-game` | 430 | 2 | 3 | partial |
-| `upgrade-mechanism` | 735 | 0 | 8 | implemented |
-| `vault-claims` | 470 | 0 | 7 | implemented |
-| `vault-routing` | 169 | 0 | 0 | partial |
-| `vip-subscription` | 1089 | 0 | 24 | implemented |
-| `vote-escrow` | 195 | 0 | 3 | implemented |
-| `voucher-minter` | 228 | 0 | 0 | partial |
-| `wallet-claims-v2` | 217 | 0 | 0 | partial |
-| `wallet-reserves` | 356 | 0 | 8 | implemented |
-| `wordle-clone` | 1214 | 0 | 22 | implemented |
+A past build prompt proposed physically moving the non-shortlisted crates into
+`contracts/incubator/`. That was not done and is still not done here. This repo
+has a long history and a workspace `Cargo.toml` with an explicit `members` list
+and `exclude` list that CI depends on. Moving that many directories is a
+large, hard-to-revert change with real risk of breaking CI or in-flight
+branches, for a tidier directory listing that the generated inventory already
+provides. If a maintainer wants the physical move later, the inventory above
+is the input list for it.

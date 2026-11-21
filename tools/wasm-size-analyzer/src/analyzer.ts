@@ -18,26 +18,37 @@ const SECTION_NAMES: Record<number, string> = {
 };
 
 const MAGIC = Buffer.from([0x00, 0x61, 0x73, 0x6d]);
-const VERSION = Buffer.from([0x01, 0x00, 0x00, 0x00]);
 const MAX_WASM_SIZE = 65536;
 
-function readLEB128(buffer: Buffer, offset: number): { value: number; bytesRead: number } {
+export class WasmFormatError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'WasmFormatError';
+  }
+}
+
+function readLEB128(buffer: Buffer, offset: number, limit: number = buffer.length): { value: number; bytesRead: number } {
   let value = 0;
   let bytesRead = 0;
   let shift = 0;
 
-  while (offset + bytesRead < buffer.length) {
+  while (offset + bytesRead < limit) {
     const byte = buffer[offset + bytesRead];
+    bytesRead += 1;
+    if (bytesRead > 5) {
+      throw new WasmFormatError('Malformed LEB128: more than 5 bytes for u32');
+    }
     value |= (byte & 0x7f) << shift;
-    bytesRead++;
-
     if ((byte & 0x80) === 0) {
-      break;
+      if (shift === 28 && (byte & 0x70) !== 0) {
+        throw new WasmFormatError('Malformed LEB128: u32 overflow');
+      }
+      return { value: value >>> 0, bytesRead };
     }
     shift += 7;
   }
 
-  return { value, bytesRead };
+  throw new WasmFormatError('Malformed LEB128: truncated value');
 }
 
 export class WasmAnalyzer {
@@ -55,18 +66,18 @@ export class WasmAnalyzer {
     const buffer = fs.readFileSync(this.config.wasmPath);
 
     if (buffer.length < 8) {
-      throw new Error('Invalid WASM file: file is too small to contain magic bytes and version');
+      throw new WasmFormatError('Invalid WASM file: file is too small to contain magic bytes and version');
     }
 
     const magic = buffer.subarray(0, 4);
-    const version = buffer.subarray(4, 8);
+    const version = buffer.readUInt32LE(4);
 
     if (!magic.equals(MAGIC)) {
-      throw new Error('Invalid WASM file: bad magic bytes');
+      throw new WasmFormatError('Invalid WASM file: bad magic bytes');
     }
 
-    if (!version.equals(VERSION)) {
-      throw new Error('Invalid WASM file: unsupported version');
+    if (version !== 1) {
+      throw new WasmFormatError(`Invalid WASM file: unsupported version ${version}`);
     }
 
     const sections = this.parseSections(buffer);
@@ -94,37 +105,41 @@ export class WasmAnalyzer {
     let offset = 8;
 
     while (offset < buffer.length) {
-      if (offset >= buffer.length) {
-        break;
-      }
-
       const sectionId = buffer[offset];
       offset++;
 
-      const { value: sectionSize, bytesRead: sizeBytesRead } = readLEB128(buffer, offset);
+      const { value: sectionSize, bytesRead: sizeBytesRead } = readLEB128(buffer, offset, buffer.length);
       offset += sizeBytesRead;
 
       const startOffset = offset;
+      const sectionEnd = startOffset + sectionSize;
+      if (sectionEnd > buffer.length) {
+        throw new WasmFormatError('Invalid WASM: section extends beyond EOF');
+      }
+
       let name = SECTION_NAMES[sectionId] || `Unknown(${sectionId})`;
 
       if (sectionId === 0 && sectionSize > 0) {
-        const { value: nameLen, bytesRead: nameLenBytes } = readLEB128(buffer, offset);
-        offset += nameLenBytes;
-
-        if (offset + nameLen <= buffer.length) {
-          name = buffer.subarray(offset, offset + nameLen).toString('utf-8');
+        const nameInfo = readLEB128(buffer, offset, sectionEnd);
+        offset += nameInfo.bytesRead;
+        const nameLen = nameInfo.value;
+        if (offset + nameLen > sectionEnd) {
+          throw new WasmFormatError('Invalid WASM: custom section name extends beyond section');
         }
-        offset = startOffset + sectionSize;
-      } else {
-        offset = startOffset + sectionSize;
+        name = buffer.subarray(offset, offset + nameLen).toString('utf-8');
       }
 
+      offset = sectionEnd;
       sections.push({
         id: sectionId,
         name,
         size: sectionSize,
-        startOffset: startOffset,
+        startOffset,
       });
+    }
+
+    if (offset !== buffer.length) {
+      throw new WasmFormatError('Invalid WASM: trailing data after last section');
     }
 
     return sections;

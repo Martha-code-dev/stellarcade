@@ -27,7 +27,12 @@ import { StatTile } from "@/components/ui/stat-tile";
 import { useWalletStatus } from "@/hooks/useWalletStatus";
 import { useXlmBalance } from "@/hooks/useXlmBalance";
 import { useSettledRounds } from "@/services/player-data";
-import { ApiClient, ONCHAIN_GAMES_CATALOG } from "@/services/typed-api-sdk";
+import {
+  ApiClient,
+  ONCHAIN_GAMES_CATALOG,
+  readGamePlayers,
+  summarizeGamePlayers,
+} from "@/services/typed-api-sdk";
 import type { Game } from "@/types/api-client";
 import { cn } from "@/lib/utils";
 
@@ -200,10 +205,7 @@ export function Dashboard() {
 
   const isConnected = mounted && wallet.capabilities.isConnected;
   const activeGames = games.filter((g) => g.status === "active").length;
-  const totalPlayers = games.reduce(
-    (sum, g) => sum + (typeof g.players === "number" ? g.players : 0),
-    0,
-  );
+  const playersSummary = summarizeGamePlayers(games);
   const hasRounds = rounds.length > 0;
 
   const balanceValue = balance.isUnfunded
@@ -283,10 +285,17 @@ export function Dashboard() {
           icon={<Dices />}
         />
         <StatTile
+          data-testid="dashboard-players-tile"
           label="Players in queue"
-          value={String(totalPlayers)}
-          empty={totalPlayers === 0}
-          caption={totalPlayers === 0 ? "No players queued yet" : "Across all games"}
+          value={String(playersSummary.total)}
+          empty={!playersSummary.available}
+          caption={
+            !playersSummary.available
+              ? "Player counts unavailable"
+              : playersSummary.measuredGames < playersSummary.totalGames
+                ? `Across ${playersSummary.measuredGames} of ${playersSummary.totalGames} games`
+                : "Across all games"
+          }
           icon={<Users />}
         />
         <StatTile
@@ -332,7 +341,7 @@ export function Dashboard() {
           bodyClassName="grid gap-3 sm:grid-cols-2"
         >
           {games.map((game) => {
-            const players = typeof game.players === "number" ? game.players : 0;
+            const players = readGamePlayers(game);
             const wager = typeof game.wager === "number" ? game.wager : null;
             const category = typeof game.category === "string" ? game.category : "On-chain";
             const description =
@@ -378,9 +387,16 @@ export function Dashboard() {
 
                 <div className="mt-auto flex items-center justify-between gap-2 pt-4">
                   <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-                    <span className="inline-flex items-center gap-1">
+                    <span
+                      className="inline-flex items-center gap-1"
+                      aria-label={
+                        players.available
+                          ? `${players.value} player${players.value === 1 ? "" : "s"}`
+                          : "Player count unavailable"
+                      }
+                    >
                       <Users className="size-3.5" aria-hidden />
-                      {players}
+                      {players.available ? players.value : "—"}
                     </span>
                     {wager !== null ? (
                       <span className="inline-flex items-center gap-1">

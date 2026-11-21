@@ -1,8 +1,54 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
 import LandingPage from "./page";
 
+/**
+ * jsdom has no 2D canvas implementation. NeonMesh only needs a small drawing
+ * surface to run its render loop, so provide a no-op boundary double here
+ * instead of installing the native `canvas` package or muting the resulting
+ * "Not implemented: getContext" diagnostic globally.
+ */
+function createCanvasContextDouble(): CanvasRenderingContext2D {
+  return {
+    fillStyle: "",
+    strokeStyle: "",
+    lineWidth: 1,
+    fillRect: () => {},
+    beginPath: () => {},
+    moveTo: () => {},
+    lineTo: () => {},
+    stroke: () => {},
+    arc: () => {},
+    fill: () => {},
+    scale: () => {},
+  } as unknown as CanvasRenderingContext2D;
+}
+
 describe("LandingPage", () => {
+  let getContextSpy: MockInstance<typeof HTMLCanvasElement.prototype.getContext>;
+  let errorSpy: MockInstance<typeof console.error>;
+  let warnSpy: MockInstance<typeof console.warn>;
+
+  beforeEach(() => {
+    getContextSpy = vi
+      .spyOn(HTMLCanvasElement.prototype, "getContext")
+      .mockImplementation(() => createCanvasContextDouble());
+    errorSpy = vi.spyOn(console, "error");
+    warnSpy = vi.spyOn(console, "warn");
+  });
+
+  afterEach(() => {
+    cleanup();
+    const unexpectedErrors = errorSpy.mock.calls;
+    const unexpectedWarnings = warnSpy.mock.calls;
+    getContextSpy.mockRestore();
+    errorSpy.mockRestore();
+    warnSpy.mockRestore();
+    // Fail on any remaining diagnostic instead of suppressing it globally.
+    expect(unexpectedErrors).toEqual([]);
+    expect(unexpectedWarnings).toEqual([]);
+  });
+
   it("renders the hero heading", () => {
     render(<LandingPage />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(

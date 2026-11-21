@@ -18,6 +18,42 @@ pub fn init(env: Env, admin: Address) -> Result<(), Error>
 
 `Result<(), Error>`
 
+### `set_bracket`
+```rust
+pub fn set_bracket(env: Env, admin: Address, bracket_id: u32, data: BracketData) -> Result<(), Error>
+```
+
+#### Parameters
+
+| Name | Type |
+|------|------|
+| `env` | `Env` |
+| `admin` | `Address` |
+| `bracket_id` | `u32` |
+| `data` | `BracketData` |
+
+#### Return Type
+
+`Result<(), Error>`
+
+### `set_bracket_health`
+```rust
+pub fn set_bracket_health(env: Env, admin: Address, bracket_id: u32, health: BracketHealthData) -> Result<(), Error>
+```
+
+#### Parameters
+
+| Name | Type |
+|------|------|
+| `env` | `Env` |
+| `admin` | `Address` |
+| `bracket_id` | `u32` |
+| `health` | `BracketHealthData` |
+
+#### Return Type
+
+`Result<(), Error>`
+
 ### `bracket_health_summary`
 Returns a summary of bracket health including player counts and activity levels.
 

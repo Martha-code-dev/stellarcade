@@ -1,197 +1,174 @@
 import fs from "fs";
 import path from "path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { POST } from "./create/route";
-import { GET } from "./profile/route";
+import { POST as createProfile } from "./create/route";
+import { POST as updateProfile } from "./update/route";
+import { GET as getProfile } from "./profile/route";
 
 /*
- * The create and profile handlers both read and write the same
- * .data/user_profiles.json. Vitest runs separate test FILES in parallel
- * workers, so keeping these suites in one file is what stops them clobbering
- * each other's fixture mid-run.
+ * These routes are now adapters over the Express API. The tests pin down the
+ * forwarding contract and the error mapping, and assert that no local JSON
+ * file is written any more.
  */
-
 const DB_FILE = path.join(process.cwd(), ".data", "user_profiles.json");
+const WALLET = "GAEP3MEIODZFPOYG3H644CBXWFSPGCQC7DM74GSJIH6SH7RJZTAE3XYE";
 
-const WALLET_A = "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-const WALLET_B = "GBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB";
-const EXISTING_ADDRESS = WALLET_A;
-const FRESH_ADDRESS = "GCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC";
+const originalFetch = global.fetch;
+let fetchMock: ReturnType<typeof vi.fn>;
 
-let backup: string | null = null;
-
-function writeDb(data: unknown) {
-  fs.mkdirSync(path.dirname(DB_FILE), { recursive: true });
-  fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), "utf-8");
+function backendResponse(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
-function post(body: unknown) {
-  return POST(
+function post(handler: typeof createProfile, body: unknown, headers: Record<string, string> = {}) {
+  return handler(
     new Request("http://localhost/users/create", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...headers },
       body: JSON.stringify(body),
     }),
   );
 }
 
-function get(url: string) {
-  return GET(new Request(url));
-}
-
 beforeEach(() => {
-  backup = fs.existsSync(DB_FILE) ? fs.readFileSync(DB_FILE, "utf-8") : null;
-  writeDb({});
+  fetchMock = vi.fn();
+  global.fetch = fetchMock as unknown as typeof fetch;
+  process.env.API_BASE_URL = "http://backend.test";
 });
 
 afterEach(() => {
-  if (backup === null) {
-    if (fs.existsSync(DB_FILE)) fs.rmSync(DB_FILE);
-  } else {
-    fs.writeFileSync(DB_FILE, backup, "utf-8");
-  }
-});
-
-describe("GET /users/profile", () => {
-  beforeEach(() => {
-    writeDb({
-      [EXISTING_ADDRESS]: {
-        address: EXISTING_ADDRESS,
-        username: "already_taken",
-        createdAt: "2026-01-01T00:00:00.000Z",
-        updatedAt: "2026-08-01T00:00:00.000Z",
-        ageConfirmedAt: "2026-01-01T00:00:00.000Z",
-      },
-    });
-  });
-
-  it("returns the profile belonging to the requested address", async () => {
-    const res = await get(`http://localhost/users/profile?address=${EXISTING_ADDRESS}`);
-    expect(res.status).toBe(200);
-    await expect(res.json()).resolves.toMatchObject({
-      address: EXISTING_ADDRESS,
-      username: "already_taken",
-    });
-  });
-
-  /*
-   * The handler used to fall back to "the most recently updated profile" when
-   * the requested address had no record, so a brand-new wallet was handed a
-   * different player's username and appeared already registered.
-   */
-  it("404s for an address with no profile instead of returning someone else's", async () => {
-    const res = await get(`http://localhost/users/profile?address=${FRESH_ADDRESS}`);
-    expect(res.status).toBe(404);
-
-    const body = await res.json();
-    expect(body.code).toBe("PROFILE_NOT_FOUND");
-    expect(JSON.stringify(body)).not.toContain("already_taken");
-    expect(JSON.stringify(body)).not.toContain(EXISTING_ADDRESS);
-  });
-
-  /* It also used to synthesize `Player_<last4>` as a last resort. */
-  it("never invents a username for an unknown address", async () => {
-    const res = await get(`http://localhost/users/profile?address=${FRESH_ADDRESS}`);
-    const body = await res.json();
-    expect(body.username).toBeUndefined();
-    expect(JSON.stringify(body)).not.toMatch(/Player_/);
-  });
-
-  it("400s when no address is supplied", async () => {
-    const res = await get("http://localhost/users/profile");
-    expect(res.status).toBe(400);
-  });
-
-  it("reads the address from the x-wallet-address header too", async () => {
-    const res = await GET(
-      new Request("http://localhost/users/profile", {
-        headers: { "x-wallet-address": EXISTING_ADDRESS },
-      }),
-    );
-    expect(res.status).toBe(200);
-  });
+  global.fetch = originalFetch;
+  delete process.env.API_BASE_URL;
 });
 
 describe("POST /users/create", () => {
-  it("creates a profile and stamps the age confirmation", async () => {
-    const res = await post({ address: WALLET_A, username: "nova_runner", ageConfirmed: true });
-    expect(res.status).toBe(200);
+  it("forwards the body, authorization and wallet header to the backend", async () => {
+    const profile = { address: WALLET, username: "nova_runner", ageConfirmedAt: "2026-01-01T00:00:00.000Z" };
+    fetchMock.mockResolvedValue(backendResponse(201, profile));
 
-    const body = await res.json();
-    expect(body.username).toBe("nova_runner");
-    expect(body.ageConfirmedAt).toEqual(expect.any(String));
-  });
-
-  it("refuses to create without the 18+ confirmation", async () => {
-    const res = await post({ address: WALLET_A, username: "nova_runner" });
-    expect(res.status).toBe(400);
-    await expect(res.json()).resolves.toMatchObject({
-      error: expect.stringMatching(/18 or over/i),
+    const res = await post(createProfile, { address: WALLET, username: "nova_runner", ageConfirmed: true }, {
+      Authorization: "Bearer token-123",
+      "X-Wallet-Address": WALLET,
     });
-  });
 
-  it("refuses to invent a username when none is supplied", async () => {
-    const res = await post({ address: WALLET_A, ageConfirmed: true });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(201);
+    await expect(res.json()).resolves.toMatchObject({ username: "nova_runner" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
 
-    const stored = JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-    expect(stored[WALLET_A]).toBeUndefined();
-  });
-
-  /*
-   * An older client path fell back to the literal 'G_GUEST_PLAYER' when no
-   * wallet was connected, writing a phantom account into the store. That row
-   * then held a username hostage from the wallet that actually wanted it.
-   */
-  it("rejects an address that is not a Stellar public key", async () => {
-    const res = await post({
-      address: "G_GUEST_PLAYER",
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("http://backend.test/users/create");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body as string)).toEqual({
+      address: WALLET,
       username: "nova_runner",
       ageConfirmed: true,
     });
+    const headers = new Headers(init.headers);
+    expect(headers.get("Authorization")).toBe("Bearer token-123");
+    expect(headers.get("X-Wallet-Address")).toBe(WALLET);
+  });
+
+  it("maps a backend validation error to the web error shape with status 400", async () => {
+    fetchMock.mockResolvedValue(
+      backendResponse(400, {
+        error: {
+          message: "Username must be 3-20 characters.",
+          code: "INVALID_USERNAME",
+          status: 400,
+        },
+      }),
+    );
+
+    const res = await post(createProfile, { address: WALLET, username: "ab" });
     expect(res.status).toBe(400);
-    await expect(res.json()).resolves.toMatchObject({
-      error: expect.stringMatching(/valid Stellar public key/i),
+    await expect(res.json()).resolves.toEqual({
+      error: "Username must be 3-20 characters.",
+      code: "INVALID_USERNAME",
     });
   });
 
-  it("does not let a non-wallet row block a real wallet's username", async () => {
-    writeDb({
-      G_GUEST_PLAYER: {
-        address: "G_GUEST_PLAYER",
-        username: "CMI-James",
-        createdAt: "2026-08-13T06:23:02.640Z",
-      },
+  it("does not write a local profile file", async () => {
+    const before = fs.existsSync(DB_FILE) ? fs.readFileSync(DB_FILE, "utf-8") : null;
+    fetchMock.mockResolvedValue(backendResponse(201, { address: WALLET }));
+
+    await post(createProfile, { address: WALLET, username: "nova_runner" });
+
+    const after = fs.existsSync(DB_FILE) ? fs.readFileSync(DB_FILE, "utf-8") : null;
+    expect(after).toBe(before);
+  });
+});
+
+describe("POST /users/update", () => {
+  it("forwards an authenticated rename to the backend", async () => {
+    fetchMock.mockResolvedValue(backendResponse(200, { address: WALLET, username: "new_name" }));
+
+    const res = await post(updateProfile, { address: WALLET, username: "new_name" }, {
+      Authorization: "Bearer token-123",
     });
 
-    const res = await post({ address: WALLET_A, username: "CMI-James", ageConfirmed: true });
     expect(res.status).toBe(200);
-    await expect(res.json()).resolves.toMatchObject({ username: "CMI-James" });
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("http://backend.test/users/update");
+    expect(new Headers(init.headers).get("Authorization")).toBe("Bearer token-123");
+  });
+});
+
+describe("GET /users/profile", () => {
+  it("forwards the address query parameter", async () => {
+    fetchMock.mockResolvedValue(backendResponse(200, { address: WALLET, username: "nova_runner" }));
+
+    const res = await getProfile(new Request(`http://localhost/users/profile?address=${WALLET}`));
+
+    expect(res.status).toBe(200);
+    expect(fetchMock.mock.calls[0][0]).toBe(`http://backend.test/users/profile?address=${WALLET}`);
   });
 
-  it("still blocks a username held by another real wallet", async () => {
-    await post({ address: WALLET_A, username: "nova_runner", ageConfirmed: true });
+  it("turns the legacy x-wallet-address header into a backend query parameter", async () => {
+    fetchMock.mockResolvedValue(backendResponse(200, { address: WALLET }));
 
-    const res = await post({ address: WALLET_B, username: "NOVA_RUNNER", ageConfirmed: true });
-    expect(res.status).toBe(409);
-    await expect(res.json()).resolves.toMatchObject({
-      error: expect.stringMatching(/already taken/i),
-    });
+    await getProfile(
+      new Request("http://localhost/users/profile", { headers: { "x-wallet-address": WALLET } }),
+    );
+
+    expect(fetchMock.mock.calls[0][0]).toBe(`http://backend.test/users/profile?address=${WALLET}`);
   });
 
-  it("reports PROFILE_EXISTS so the client can fall back to an update", async () => {
-    await post({ address: WALLET_A, username: "nova_runner", ageConfirmed: true });
+  it("preserves the 404 and PROFILE_NOT_FOUND signal", async () => {
+    fetchMock.mockResolvedValue(
+      backendResponse(404, { error: { message: "No profile found.", code: "PROFILE_NOT_FOUND" } }),
+    );
 
-    const res = await post({ address: WALLET_A, username: "nova_runner", ageConfirmed: true });
-    expect(res.status).toBe(409);
-    await expect(res.json()).resolves.toMatchObject({ code: "PROFILE_EXISTS" });
+    const res = await getProfile(
+      new Request(`http://localhost/users/profile?address=${WALLET}`),
+    );
+
+    expect(res.status).toBe(404);
+    await expect(res.json()).resolves.toEqual({ error: "No profile found.", code: "PROFILE_NOT_FOUND" });
+  });
+});
+
+describe("proxy failure handling", () => {
+  it("reports a missing backend configuration explicitly", async () => {
+    delete process.env.API_BASE_URL;
+    delete process.env.NEXT_PUBLIC_API_BASE_URL;
+
+    const res = await post(createProfile, { address: WALLET, username: "nova_runner" });
+
+    expect(res.status).toBe(500);
+    expect(fetchMock).not.toHaveBeenCalled();
+    await expect(res.json()).resolves.toEqual({ error: "Profile service is not configured." });
   });
 
-  it("enforces the username format", async () => {
-    for (const username of ["ab", "x".repeat(21), "has spaces", "bad@char"]) {
-      const res = await post({ address: WALLET_A, username, ageConfirmed: true });
-      expect(res.status, `expected ${username} to be rejected`).toBe(400);
-    }
+  it("reports an unavailable backend as 502", async () => {
+    fetchMock.mockRejectedValue(new Error("connection refused"));
+
+    const res = await post(createProfile, { address: WALLET, username: "nova_runner" });
+
+    expect(res.status).toBe(502);
+    await expect(res.json()).resolves.toEqual({ error: "Profile service is unavailable." });
   });
 });

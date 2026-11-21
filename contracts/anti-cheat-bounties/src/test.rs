@@ -1,11 +1,14 @@
 use super::*;
-use soroban_sdk::{testutils::Address as _, Address, Env, Symbol};
+use soroban_sdk::{
+    testutils::{Address as _, Ledger as _},
+    Address, Env, Symbol,
+};
 
 fn setup(env: &Env) -> (AntiCheatBountiesClient<'_>, Address, Address, Address) {
     let admin = Address::generate(env);
     let token = Address::generate(env);
     let poster = Address::generate(env);
-    let contract_id = env.register_contract(None, AntiCheatBounties);
+    let contract_id = env.register(AntiCheatBounties, ());
     let client = AntiCheatBountiesClient::new(env, &contract_id);
     client.init(&admin, &token);
     (client, admin, token, poster)
@@ -272,4 +275,50 @@ fn test_claim_window_accessor_unknown_bounty() {
     assert!(!window.exists);
     assert!(!window.in_claim_window);
     assert_eq!(window.ledgers_until_window_end, 0);
+}
+
+// Boundary for the saturating subtraction used in #1590: once the ledger is
+// past the claim window, no ledgers are reported as remaining and the window
+// is closed, without underflowing.
+#[test]
+fn test_claim_window_accessor_after_window_end() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, _admin, _token, poster) = setup(&env);
+
+    // deadline 100 + window 50 = end 150; move to 151.
+    let id = client.post_bounty(&poster, &game_id(&env), &100_000, &2, &100);
+    env.ledger().with_mut(|li| li.sequence_number = 151);
+
+    let window = client.claim_window_accessor(&id, &50u32);
+    assert!(window.exists);
+    assert_eq!(window.claim_window_end_ledger, 150);
+    assert!(!window.in_claim_window);
+    assert_eq!(window.ledgers_until_window_end, 0);
+}
+
+// Authorization: adjudication calls require the stored admin to authorize.
+// With all auths mocked they pass; with no mock in place they must fail.
+#[test]
+fn test_admin_actions_require_admin_authorization() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, _admin, _token, poster) = setup(&env);
+    let id = client.post_bounty(&poster, &game_id(&env), &100_000, &2, &500);
+
+    // No signatures available: begin_adjudication calls require_auth and fails.
+    env.mock_auths(&[]);
+    assert!(client.try_begin_adjudication(&id).is_err());
+    assert_eq!(
+        client.adjudication_readiness(&id).status,
+        BountyStatus::Open
+    );
+
+    // Restoring auth lets the admin-only transition proceed.
+    env.mock_all_auths();
+    client.begin_adjudication(&id);
+    assert_eq!(
+        client.adjudication_readiness(&id).status,
+        BountyStatus::UnderReview
+    );
 }

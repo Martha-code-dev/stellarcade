@@ -186,11 +186,7 @@ impl WalletClaimsV2 {
             cooldown_seconds: policy.cooldown_seconds,
             threshold_amount: policy.threshold_amount,
             next_available_at,
-            seconds_until_next_window: if next_available_at > now {
-                next_available_at - now
-            } else {
-                0
-            },
+            seconds_until_next_window: next_available_at.saturating_sub(now),
             currently_blocked: policy.paused || next_available_at > now,
             now,
         }

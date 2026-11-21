@@ -1,32 +1,34 @@
-//! Stellarcade Dice Roll Contract
-//!
-//! A dice betting game integrated with the Random Generator contract.
-//! Players predict a face (1–6), place a wager, and an oracle resolves
-//! the outcome via the RNG contract's request/fulfill model.
-//!
-//! ## Game Flow
-//! 1. Player calls `roll` → tokens transfer in, RNG requested, game stored.
-//! 2. Oracle fulfills randomness on the RNG contract (off-chain step).
-//! 3. Anyone calls `resolve_roll` → reads RNG result, settles payout.
-//!
-//! ## Payout
-//! A correct prediction pays `6 * wager - fee`, where the fee is
-//! `wager * house_edge_bps / 10000` applied to the winnings portion
-//! (5 * wager). For example, at 250 bps (2.5%) and a 100-token wager,
-//! winnings = 500, fee = 500 * 250 / 10000 = 12, payout = 600 - 12 = 588.
-//!
-//! ## House Edge
-//! Configured at init via `house_edge_bps` (basis points). Applied only
-//! to the profit portion of a winning bet (5 * wager).
 #![no_std]
 #![allow(unexpected_cfgs)]
 
 use soroban_sdk::{
-    contract, contracterror, contractevent, contractimpl, contracttype, token::TokenClient,
-    Address, Env, Vec,
+    contract, contractclient, contracterror, contractevent, contractimpl, contracttype,
+    token::TokenClient, Address, BytesN, Env, Vec,
 };
 
-use stellarcade_random_generator::RandomGeneratorClient;
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FulfilledEntry {
+    pub caller: Address,
+    pub max: u64,
+    pub server_seed: BytesN<32>,
+    pub result: u64,
+    pub commitment: BytesN<32>,
+}
+
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[repr(u32)]
+pub enum RngError {
+    RequestNotFound = 6,
+}
+
+#[contractclient(name = "RandomGeneratorClient")]
+pub trait RandomGeneratorContract {
+    fn request_random(env: Env, caller: Address, request_id: u64, max: u64)
+        -> Result<(), RngError>;
+    fn get_result(env: Env, caller: Address, request_id: u64) -> Result<FulfilledEntry, RngError>;
+}
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -44,6 +46,7 @@ pub const DIE_SIDES: u64 = 6;
 const PAYOUT_MULTIPLIER: i128 = 6;
 /// Default per-player cooldown between rolls, in seconds (30s).
 pub const DEFAULT_COOLDOWN_SECS: u64 = 30;
+pub const DEFAULT_REFUND_TIMEOUT_LEDGERS: u32 = 100;
 /// Max entries kept in the rolling history snapshot.
 const HISTORY_MAX: u32 = 20;
 
@@ -68,6 +71,8 @@ pub enum Error {
     WagerTooHigh = 11,
     Overflow = 12,
     InvalidWagerRange = 13,
+    RefundNotYetAvailable = 14,
+    GameRefunded = 15,
 }
 
 // ---------------------------------------------------------------------------
@@ -88,6 +93,7 @@ pub enum DataKey {
     ResolvedHistory,
     /// Ledger timestamp of last roll per player, for cooldown tracking.
     LastRollAt(Address),
+    RefundTimeoutLedgers,
 }
 
 /// Snapshot of recent rolling history.
@@ -119,6 +125,8 @@ pub struct Roll {
     pub won: bool,
     pub result: u32,
     pub payout: i128,
+    pub placed_at_ledger: u32,
+    pub refunded: bool,
 }
 
 #[contracttype]
@@ -151,6 +159,15 @@ pub struct RollResolved {
     pub result: u32,
     pub won: bool,
     pub payout: i128,
+}
+
+#[contractevent]
+pub struct RollRefunded {
+    #[topic]
+    pub game_id: u64,
+    #[topic]
+    pub player: Address,
+    pub wager: i128,
 }
 
 // ---------------------------------------------------------------------------
@@ -249,6 +266,8 @@ impl DiceRoll {
             won: false,
             result: 0,
             payout: 0,
+            placed_at_ledger: env.ledger().sequence(),
+            refunded: false,
         };
         env.storage().persistent().set(&game_key, &roll);
         env.storage().persistent().extend_ttl(
@@ -290,6 +309,9 @@ impl DiceRoll {
             .get(&game_key)
             .ok_or(Error::GameNotFound)?;
 
+        if roll.refunded {
+            return Err(Error::GameRefunded);
+        }
         if roll.resolved {
             return Err(Error::GameAlreadyResolved);
         }
@@ -297,7 +319,7 @@ impl DiceRoll {
         // Read RNG result
         let rng_addr: Address = env.storage().instance().get(&DataKey::RngContract).unwrap();
         let rng_client = RandomGeneratorClient::new(&env, &rng_addr);
-        let fulfilled = rng_client.try_get_result(&game_id);
+        let fulfilled = rng_client.try_get_result(&env.current_contract_address(), &game_id);
         let entry = match fulfilled {
             Ok(Ok(e)) => e,
             _ => return Err(Error::RngNotFulfilled),
@@ -442,9 +464,96 @@ impl DiceRoll {
         }
     }
 
+    /// Cancel a roll whose randomness was never fulfilled and refund the full
+    /// wager to the player.
+    ///
+    /// Only the game's player may call this, and only once
+    /// RefundTimeoutLedgers ledgers have passed since placed_at_ledger
+    /// while the RNG request is still unfulfilled. If the RNG result is
+    /// already available the call fails with RefundNotYetAvailable; the
+    /// game must be settled with resolve_roll instead.
+    pub fn cancel_stale_roll(env: Env, player: Address, game_id: u64) -> Result<(), Error> {
+        require_initialized(&env)?;
+        player.require_auth();
+
+        let game_key = DataKey::Game(game_id);
+        let mut roll: Roll = env
+            .storage()
+            .persistent()
+            .get(&game_key)
+            .ok_or(Error::GameNotFound)?;
+
+        if roll.player != player {
+            return Err(Error::NotAuthorized);
+        }
+        if roll.refunded {
+            return Err(Error::GameRefunded);
+        }
+        if roll.resolved {
+            return Err(Error::GameAlreadyResolved);
+        }
+
+        let timeout: u32 = env
+            .storage()
+            .instance()
+            .get(&DataKey::RefundTimeoutLedgers)
+            .unwrap_or(DEFAULT_REFUND_TIMEOUT_LEDGERS);
+        let refundable_at = roll
+            .placed_at_ledger
+            .checked_add(timeout)
+            .ok_or(Error::Overflow)?;
+        if env.ledger().sequence() < refundable_at {
+            return Err(Error::RefundNotYetAvailable);
+        }
+
+        // A fulfilled RNG request means the game can be settled normally.
+        let rng_addr: Address = env.storage().instance().get(&DataKey::RngContract).unwrap();
+        if let Ok(Ok(_)) = RandomGeneratorClient::new(&env, &rng_addr)
+            .try_get_result(&env.current_contract_address(), &game_id)
+        {
+            return Err(Error::RefundNotYetAvailable);
+        }
+
+        // Mark the game settled before moving tokens.
+        roll.resolved = true;
+        roll.refunded = true;
+        roll.won = false;
+        roll.payout = 0;
+        env.storage().persistent().set(&game_key, &roll);
+        env.storage().persistent().extend_ttl(
+            &game_key,
+            PERSISTENT_BUMP_LEDGERS,
+            PERSISTENT_BUMP_LEDGERS,
+        );
+
+        let token = get_token(&env);
+        TokenClient::new(&env, &token).transfer(
+            &env.current_contract_address(),
+            &roll.player,
+            &roll.wager,
+        );
+
+        RollRefunded {
+            game_id,
+            player: roll.player,
+            wager: roll.wager,
+        }
+        .publish(&env);
+        Ok(())
+    }
+
+    /// Admin-only update for refund timeout ledgers.
+    pub fn set_refund_timeout_ledgers(env: Env, admin: Address, timeout: u32) -> Result<(), Error> {
+        require_admin(&env, &admin)?;
+        env.storage()
+            .instance()
+            .set(&DataKey::RefundTimeoutLedgers, &timeout);
+        Ok(())
+    }
+
     /// Per-player cooldown window accessor.
     /// Returns whether the player is currently in a cooldown period after their last roll.
-    /// `cooldown_secs` is the configured cooldown window (DEFAULT_COOLDOWN_SECS = 30s).
+    /// cooldown_secs is the configured cooldown window (DEFAULT_COOLDOWN_SECS = 30s).
     pub fn cooldown_window(env: Env, player: Address) -> CooldownWindow {
         let now = env.ledger().timestamp();
         match env

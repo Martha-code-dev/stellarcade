@@ -1,6 +1,4 @@
-#![no_std]
-
-use soroban_sdk::{contracttype, Address, Env, String, Vec, BytesN};
+use soroban_sdk::{contracttype, Address, String};
 
 // Types for badge-minter contract
 

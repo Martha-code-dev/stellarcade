@@ -104,9 +104,7 @@ impl AttendancePass {
             };
         };
 
-        let status = if !record.active {
-            PassStatus::Expired
-        } else if now >= record.expires_at {
+        let status = if !record.active || now >= record.expires_at {
             PassStatus::Expired
         } else {
             PassStatus::Active
@@ -193,11 +191,10 @@ impl AttendancePass {
         let total_issued = storage::get_total_issued(&env);
         let checked_in_count = storage::get_checked_in_count(&env);
         let unchecked_count = total_issued.saturating_sub(checked_in_count);
-        let check_in_rate_bps = if total_issued == 0 {
-            0
-        } else {
-            ((checked_in_count.saturating_mul(10_000)) / total_issued) as u32
-        };
+        let check_in_rate_bps = checked_in_count
+            .saturating_mul(10_000)
+            .checked_div(total_issued)
+            .unwrap_or(0) as u32;
 
         CheckInCoverageSummary {
             configured,

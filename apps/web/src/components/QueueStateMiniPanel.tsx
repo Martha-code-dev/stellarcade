@@ -23,6 +23,7 @@ const HEALTH_TONE: Record<QueueMetrics["queueHealth"], "success" | "warning" | "
   degraded: "warning",
   critical: "error",
   offline: "neutral",
+  unknown: "neutral",
 };
 
 const HEALTH_LABEL: Record<QueueMetrics["queueHealth"], string> = {
@@ -30,10 +31,11 @@ const HEALTH_LABEL: Record<QueueMetrics["queueHealth"], string> = {
   degraded: "Degraded",
   critical: "Critical",
   offline: "Offline",
+  unknown: "Unavailable",
 };
 
-function formatWait(seconds: number): string {
-  if (seconds <= 0) return "—";
+function formatWait(seconds: number | null): string {
+  if (seconds === null || seconds <= 0) return "—";
   if (seconds < 60) return `${seconds}s`;
   return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
 }
@@ -43,20 +45,18 @@ export const QueueStateMiniPanel: React.FC<QueueStateMiniPanelProps> = ({
   title,
   context = "lobby",
   loading = false,
-  error,
-  onRefresh,
   className = "",
   testId = "queue-state-mini-panel",
 }) => {
   const resolvedTitle = title ?? (context === "live-match" ? "Match Queue" : "Queue Status");
 
   const current = metrics ?? {
-    playersInQueue: 0,
-    averageWaitTime: 0,
-    estimatedWaitTime: 0,
-    activeMatches: 0,
-    queueHealth: "offline" as const,
-    lastUpdated: new Date().toISOString(),
+    playersInQueue: null,
+    averageWaitTime: null,
+    estimatedWaitTime: null,
+    activeMatches: null,
+    queueHealth: "unknown" as const,
+    lastUpdated: null,
   };
 
   const containerClass = [
@@ -82,7 +82,7 @@ export const QueueStateMiniPanel: React.FC<QueueStateMiniPanelProps> = ({
       <div className="queue-state-mini-panel__metrics" data-testid={`${testId}-metrics`}>
         <div className="queue-state-mini-panel__metric">
           <span className="queue-state-mini-panel__metric-value">
-            {loading ? "—" : current.playersInQueue}
+            {loading || current.playersInQueue === null ? "—" : current.playersInQueue}
           </span>
           <span className="queue-state-mini-panel__metric-label">Players</span>
         </div>
@@ -94,7 +94,7 @@ export const QueueStateMiniPanel: React.FC<QueueStateMiniPanelProps> = ({
         </div>
         <div className="queue-state-mini-panel__metric">
           <span className="queue-state-mini-panel__metric-value">
-            {loading ? "—" : current.activeMatches}
+            {loading || current.activeMatches === null ? "—" : current.activeMatches}
           </span>
           <span className="queue-state-mini-panel__metric-label">Active</span>
         </div>

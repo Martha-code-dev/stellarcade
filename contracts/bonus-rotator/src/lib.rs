@@ -3,9 +3,9 @@
 use soroban_sdk::{contract, contractimpl, Address, Env};
 
 mod storage;
-mod types;
 #[cfg(test)]
 mod test;
+mod types;
 
 pub use types::{ActiveBonusCycleSnapshot, BonusCycle, CycleDelay, RotatorStatusSummary};
 
@@ -106,7 +106,7 @@ impl BonusRotator {
         match storage::get_cycle(&env) {
             Some(c) => CycleDelay {
                 has_active_cycle: true,
-                seconds_until_end: if c.ends_at > now { c.ends_at - now } else { 0 },
+                seconds_until_end: c.ends_at.saturating_sub(now),
             },
             None => CycleDelay {
                 has_active_cycle: false,

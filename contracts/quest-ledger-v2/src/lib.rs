@@ -23,7 +23,7 @@ pub enum DataKey {
     QueueSnapshot(u64), // timestamp
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[contracttype]
 pub struct QuestCompletion {
     pub quest_id: u64,
@@ -34,7 +34,7 @@ pub struct QuestCompletion {
     pub status: Symbol, // "PENDING", "PROCESSED", "DELAYED"
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[contracttype]
 pub struct CompletionQueueSnapshot {
     pub timestamp: u64,
@@ -47,7 +47,7 @@ pub struct CompletionQueueSnapshot {
     pub queue_health_score: u32, // 0-100
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[contracttype]
 pub struct RewardDelayAccessor {
     pub quest_id: u64,
@@ -59,7 +59,7 @@ pub struct RewardDelayAccessor {
     pub can_expedite: bool,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[contracttype]
 pub struct QueueMetrics {
     pub total_completions: u32,
@@ -222,7 +222,7 @@ impl QuestLedgerV2 {
             total_processing: 0,
             total_delayed: 0,
             oldest_pending: if total_quests > 0 {
-                Some(current_time - 3600)
+                Some(current_time.saturating_sub(3600))
             } else {
                 None
             },

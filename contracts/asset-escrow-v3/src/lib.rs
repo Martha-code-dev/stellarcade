@@ -14,15 +14,29 @@
 
 use soroban_sdk::{contract, contractevent, contractimpl, Address, Env, Vec};
 
-mod types;
 mod storage;
+mod types;
 
-use types::{BalanceLockSummary, DataKey, LockStatus, LockedAsset, ReleaseCooldownAccessor, UnlockReadinessInfo};
 use storage::{
-    compute_balance_lock_summary, get_beneficiary_lock_ids, get_beneficiary_total_locked,
-    get_lock, get_release_cooldown, get_unlock_readiness, set_beneficiary_lock_ids,
+    compute_balance_lock_summary, get_beneficiary_lock_ids, get_beneficiary_total_locked, get_lock,
+    get_release_cooldown, get_unlock_readiness, set_beneficiary_lock_ids,
     set_beneficiary_total_locked, set_lock,
 };
+pub use types::Error;
+use types::{
+    BalanceLockSummary, DataKey, LockStatus, LockedAsset, ReleaseCooldownAccessor,
+    UnlockReadinessInfo,
+};
+
+impl core::fmt::Debug for LockStatus {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            LockStatus::Locked => f.write_str("Locked"),
+            LockStatus::ReadyToUnlock => f.write_str("ReadyToUnlock"),
+            LockStatus::Unlocked => f.write_str("Unlocked"),
+        }
+    }
+}
 
 // ──────────────────────────────────────────────────────────────
 // Events
@@ -82,19 +96,14 @@ impl AssetEscrowV3 {
     }
 
     /// Create a new lock entry for a beneficiary.
-    pub fn create_lock(
-        env: Env,
-        beneficiary: Address,
-        amount: i128,
-        unlock_ledger: u32,
-    ) -> u32 {
+    pub fn create_lock(env: Env, beneficiary: Address, amount: i128, unlock_ledger: u32) -> u32 {
         require_admin(&env);
 
         if amount <= 0 {
             panic!("Invalid amount");
         }
 
-        let current_ledger = env.ledger().sequence() as u32;
+        let current_ledger = env.ledger().sequence();
         if unlock_ledger < current_ledger {
             panic!("Invalid unlock ledger");
         }
@@ -147,7 +156,7 @@ impl AssetEscrowV3 {
         beneficiary.require_auth();
 
         if let Some(locked_asset) = get_lock(&env, &beneficiary, lock_id) {
-            let current_ledger = env.ledger().sequence() as u32;
+            let current_ledger = env.ledger().sequence();
 
             if current_ledger < locked_asset.unlock_ledger {
                 panic!("Lock not yet ready to unlock");
@@ -161,7 +170,7 @@ impl AssetEscrowV3 {
                 .remove(&DataKey::Lock(beneficiary.clone(), lock_id));
 
             // Remove from lock list
-            let mut lock_ids = get_beneficiary_lock_ids(&env, &beneficiary);
+            let lock_ids = get_beneficiary_lock_ids(&env, &beneficiary);
             let mut new_ids = Vec::new(&env);
             for id in lock_ids.iter() {
                 if id != lock_id {

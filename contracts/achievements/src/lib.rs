@@ -30,10 +30,12 @@ impl AchievementsContract {
         category: String,
     ) -> CategoryCompletionSummary {
         let achievements = get_achievements(&env, &user);
-        let category_achievements: Vec<Achievement> = achievements
-            .iter()
-            .filter(|a| a.category == category)
-            .collect();
+        let mut category_achievements = Vec::new(&env);
+        for achievement in achievements.iter() {
+            if achievement.category == category {
+                category_achievements.push_back(achievement);
+            }
+        }
         let unlocked = category_achievements.iter().filter(|a| a.unlocked).count() as u32;
         let total = category_achievements.len();
         let percentage = if total > 0 {
@@ -56,12 +58,14 @@ impl AchievementsContract {
 
     // Write functions
     pub fn add_achievement(env: Env, user: Address, achievement: Achievement) {
+        get_admin(&env).require_auth();
         let mut achs = get_achievements(&env, &user);
         achs.push_back(achievement);
         set_achievements(&env, &user, &achs);
     }
 
     pub fn set_next_unlock(env: Env, user: Address, unlock: NextUnlock) {
+        get_admin(&env).require_auth();
         set_next_unlock(&env, &user, &unlock);
     }
 
@@ -88,7 +92,7 @@ impl AchievementsContract {
 
     // Claim grace period accessor
     pub fn get_claim_grace_accessor(env: Env, user: Address) -> ClaimGraceAccessor {
-        let current_ledger = env.ledger().sequence() as u32;
+        let current_ledger = env.ledger().sequence();
         let grace_period_ledger = get_claim_grace_period(&env, &user).unwrap_or(0);
 
         let is_within_grace_period = if grace_period_ledger > 0 {
@@ -97,11 +101,7 @@ impl AchievementsContract {
             false
         };
 
-        let ledgers_remaining = if grace_period_ledger > current_ledger {
-            grace_period_ledger - current_ledger
-        } else {
-            0
-        };
+        let ledgers_remaining = grace_period_ledger.saturating_sub(current_ledger);
 
         ClaimGraceAccessor {
             user: user.clone(),
@@ -114,6 +114,10 @@ impl AchievementsContract {
 
     // Write function for claim grace period
     pub fn set_claim_grace_period(env: Env, user: Address, grace_ledger: u32) {
+        get_admin(&env).require_auth();
         set_claim_grace_period(&env, &user, grace_ledger);
     }
 }
+
+#[cfg(test)]
+mod test;

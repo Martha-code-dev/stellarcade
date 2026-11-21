@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import http from 'node:http';
 import { Alerter, MetricsServer } from './alerter.js';
 
@@ -141,7 +141,7 @@ describe('MetricsServer', () => {
 
     await new Promise((resolve) => setTimeout(resolve, 200));
 
-    const body = await httpGet('http://localhost:19876/metrics');
+    const { body } = await httpGet('http://localhost:19876/metrics');
     expect(body).toContain('soroban_rpc_health_status 1');
     expect(body).toContain('soroban_rpc_ledger_sequence 200');
   });
@@ -152,7 +152,7 @@ describe('MetricsServer', () => {
 
     await new Promise((resolve) => setTimeout(resolve, 200));
 
-    const body = await httpGet('http://localhost:19877/health');
+    const { body } = await httpGet('http://localhost:19877/health');
     const parsed = JSON.parse(body);
     expect(parsed.status).toBe('ok');
   });

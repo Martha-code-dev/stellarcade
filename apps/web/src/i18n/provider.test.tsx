@@ -1,6 +1,30 @@
-import { act, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
 import { I18nProvider, useI18n, resolveIntlLocale, isSupportedLocale } from "./provider";
+
+/** jsdom in this environment has no Storage implementation. */
+function installLocalStorageDouble(): void {
+  const store = new Map<string, string>();
+  const double = {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      store.set(key, String(value));
+    },
+    removeItem: (key: string) => {
+      store.delete(key);
+    },
+    clear: () => store.clear(),
+    key: (index: number) => Array.from(store.keys())[index] ?? null,
+    get length() {
+      return store.size;
+    },
+  } as Storage;
+  Object.defineProperty(globalThis, "localStorage", {
+    value: double,
+    configurable: true,
+    writable: true,
+  });
+}
 
 function Probe() {
   const { locale, t, setLocale } = useI18n();
@@ -14,20 +38,35 @@ function Probe() {
 }
 
 describe("I18nProvider", () => {
+  let errorSpy: MockInstance<typeof console.error>;
+  let warnSpy: MockInstance<typeof console.warn>;
+
   beforeEach(() => {
-    localStorage.clear();
+    installLocalStorageDouble();
+    errorSpy = vi.spyOn(console, "error");
+    warnSpy = vi.spyOn(console, "warn");
   });
 
   afterEach(() => {
-    localStorage.clear();
+    cleanup();
+    const unexpectedErrors = errorSpy.mock.calls;
+    const unexpectedWarnings = warnSpy.mock.calls;
+    errorSpy.mockRestore();
+    warnSpy.mockRestore();
+    expect(unexpectedErrors).toEqual([]);
+    expect(unexpectedWarnings).toEqual([]);
   });
 
-  it("defaults to English and resolves a known key", () => {
+  it("defaults to English and resolves a known key", async () => {
     render(
       <I18nProvider>
         <Probe />
       </I18nProvider>,
     );
+    // The provider loads messages in an async effect. Flush it inside act so
+    // the resulting state update is not reported as an unwrapped act warning.
+    await act(async () => {});
+
     expect(screen.getByTestId("locale")).toHaveTextContent("en");
     expect(screen.getByTestId("title")).toHaveTextContent("StellarCade");
   });
@@ -38,12 +77,13 @@ describe("I18nProvider", () => {
         <Probe />
       </I18nProvider>,
     );
+    await act(async () => {});
 
     await act(async () => {
-      screen.getByText("switch").click();
+      fireEvent.click(screen.getByText("switch"));
     });
+    await waitFor(() => expect(screen.getByTestId("locale")).toHaveTextContent("es"));
 
-    expect(screen.getByTestId("locale")).toHaveTextContent("es");
     expect(localStorage.getItem("stellarcade_locale")).toBe("es");
   });
 });

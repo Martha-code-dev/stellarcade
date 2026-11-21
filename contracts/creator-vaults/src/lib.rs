@@ -107,11 +107,7 @@ impl CreatorVaults {
         match get_vault(&env, creator) {
             Some(vault) => {
                 let is_unlockable = vault.is_active && now >= vault.unlock_time;
-                let seconds_until_unlock = if now >= vault.unlock_time {
-                    0
-                } else {
-                    vault.unlock_time - now
-                };
+                let seconds_until_unlock = vault.unlock_time.saturating_sub(now);
 
                 UnlockReadiness {
                     vault_exists: true,
@@ -206,10 +202,8 @@ impl CreatorVaults {
                 let depletion_bps = if vault.locked_amount == 0 {
                     0u32
                 } else {
-                    u32::try_from(
-                        (unlockable_amount * 10_000) / vault.locked_amount,
-                    )
-                    .unwrap_or(10_000)
+                    u32::try_from((unlockable_amount * 10_000) / vault.locked_amount)
+                        .unwrap_or(10_000)
                 };
                 DepletionGapAccessor {
                     vault_exists: true,

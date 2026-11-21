@@ -11,6 +11,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "migrate": "knex migrate:latest",
+    "migrate:profiles": "node scripts/migrate-user-profiles.js",
     "openapi:generate": "node scripts/openapi.js generate",
     "openapi:validate": "node scripts/openapi.js validate"
   },
@@ -36,5 +37,11 @@
     "prettier": "^3.0.3",
     "sqlite3": "^5.1.6",
     "supertest": "^6.3.3"
+  },
+  "overrides": {
+    "proxy-addr": "2.0.8"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

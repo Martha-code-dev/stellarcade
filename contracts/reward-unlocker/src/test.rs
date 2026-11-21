@@ -1,8 +1,7 @@
-#![cfg(test)]
-
 use super::*;
-use soroban_sdk::testutils::Address as _;
-use soroban_sdk::{vec, Address, Env};
+use crate::types::QueueStatus;
+use soroban_sdk::testutils::{Address as _, Ledger as _};
+use soroban_sdk::{Address, Env};
 
 #[test]
 fn test_init() {
@@ -115,7 +114,6 @@ fn test_get_unlock_queue_summary_with_rewards() {
     client.queue_reward(&recipient, &300, &1000);
 
     // Queue with short cooldown (ready)
-    let current_ledger = env.ledger().sequence();
     client.queue_reward(&recipient, &200, &1);
 
     let summary = client.get_unlock_queue_summary(&recipient);
@@ -201,7 +199,8 @@ fn test_claim_queued_reward_success() {
     let queue_id = client.queue_reward(&recipient, &500, &1);
 
     // Advance ledger to make reward claimable
-    env.ledger().with_sequence(env.ledger().sequence() + 100);
+    env.ledger()
+        .set_sequence_number(env.ledger().sequence() + 100);
 
     let amount = client.claim_queued_reward(&recipient, &queue_id);
     assert_eq!(amount, 500);

@@ -47,6 +47,8 @@ logs/
 coverage/
 .nyc_output
 test_snapshots/
+__pycache__/
+*.pyc
 
 # OS generated files
 .DS_Store

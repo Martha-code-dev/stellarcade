@@ -1,7 +1,7 @@
 #![no_std]
 use soroban_sdk::{
-    contract, contracterror, contractevent, contractimpl, contracttype,
-    token, Address, BytesN, Env, Map, String, Symbol, Vec,
+    contract, contracterror, contractevent, contractimpl, contracttype, token, Address, BytesN,
+    Env, Map, String, Symbol, Vec,
 };
 
 #[contracterror]
@@ -162,7 +162,9 @@ impl CrossChainBridge {
         }
 
         env.storage().instance().set(&DataKey::Admin, &admin);
-        env.storage().instance().set(&DataKey::Validators, &validators);
+        env.storage()
+            .instance()
+            .set(&DataKey::Validators, &validators);
         env.storage().instance().set(&DataKey::Quorum, &quorum);
         env.storage().instance().set(&DataKey::Paused, &false);
         env.storage().instance().set(&DataKey::RequestNonce, &0u64);
@@ -173,8 +175,12 @@ impl CrossChainBridge {
 
     pub fn set_token_mapping(env: Env, symbol: Symbol, asset: Address) -> Result<(), Error> {
         require_admin(&env)?;
-        env.storage().instance().set(&DataKey::TokenMapping(symbol.clone()), &asset);
-        env.storage().instance().set(&DataKey::WrappedTokenMapping(asset), &symbol);
+        env.storage()
+            .instance()
+            .set(&DataKey::TokenMapping(symbol.clone()), &asset);
+        env.storage()
+            .instance()
+            .set(&DataKey::WrappedTokenMapping(asset), &symbol);
         Ok(())
     }
 
@@ -199,7 +205,7 @@ impl CrossChainBridge {
         from.require_auth();
 
         let client = token::Client::new(&env, &asset);
-        client.transfer(&from, &env.current_contract_address(), &amount);
+        client.transfer(&from, env.current_contract_address(), &amount);
 
         let request_id = next_request_id(&env);
         let record = BridgeRequestSummary {
@@ -404,7 +410,11 @@ impl CrossChainBridge {
 // --- Internal Helpers ---
 
 fn ensure_not_paused(env: &Env) -> Result<(), Error> {
-    let paused: bool = env.storage().instance().get(&DataKey::Paused).unwrap_or(false);
+    let paused: bool = env
+        .storage()
+        .instance()
+        .get(&DataKey::Paused)
+        .unwrap_or(false);
     if paused {
         return Err(Error::ContractPaused);
     }
@@ -412,8 +422,11 @@ fn ensure_not_paused(env: &Env) -> Result<(), Error> {
 }
 
 fn require_admin(env: &Env) -> Result<(), Error> {
-    let admin: Address =
-        env.storage().instance().get(&DataKey::Admin).ok_or(Error::NotAuthorized)?;
+    let admin: Address = env
+        .storage()
+        .instance()
+        .get(&DataKey::Admin)
+        .ok_or(Error::NotAuthorized)?;
     admin.require_auth();
     Ok(())
 }
@@ -423,10 +436,16 @@ fn verify_quorum(
     proof: &BytesN<32>,
     signatures: &Map<BytesN<32>, BytesN<64>>,
 ) -> Result<(), Error> {
-    let validators: Vec<BytesN<32>> =
-        env.storage().instance().get(&DataKey::Validators).ok_or(Error::NotAuthorized)?;
-    let quorum: u32 =
-        env.storage().instance().get(&DataKey::Quorum).ok_or(Error::NotAuthorized)?;
+    let validators: Vec<BytesN<32>> = env
+        .storage()
+        .instance()
+        .get(&DataKey::Validators)
+        .ok_or(Error::NotAuthorized)?;
+    let quorum: u32 = env
+        .storage()
+        .instance()
+        .get(&DataKey::Quorum)
+        .ok_or(Error::NotAuthorized)?;
 
     if signatures.len() < quorum {
         return Err(Error::InvalidQuorum);
@@ -453,10 +472,16 @@ fn verify_quorum(
 }
 
 fn mark_processed(env: &Env, proof: &BytesN<32>) -> Result<(), Error> {
-    if env.storage().persistent().has(&DataKey::ProcessedProofs(proof.clone())) {
+    if env
+        .storage()
+        .persistent()
+        .has(&DataKey::ProcessedProofs(proof.clone()))
+    {
         return Err(Error::ProofAlreadyProcessed);
     }
-    env.storage().persistent().set(&DataKey::ProcessedProofs(proof.clone()), &true);
+    env.storage()
+        .persistent()
+        .set(&DataKey::ProcessedProofs(proof.clone()), &true);
     Ok(())
 }
 
@@ -483,16 +508,24 @@ fn store_request(env: &Env, request_id: u64, record: &BridgeRequestSummary) {
 #[cfg(test)]
 mod test {
     use super::*;
+    use ed25519_dalek::{Signer, SigningKey, VerifyingKey};
+    use rand::rngs::OsRng;
     use soroban_sdk::{
         symbol_short,
         testutils::Address as _,
         token::{StellarAssetClient, TokenClient},
         Address, BytesN, Env,
     };
-    use ed25519_dalek::{SigningKey, Signer, VerifyingKey};
-    use rand::rngs::OsRng;
 
-    fn setup(env: &Env) -> (CrossChainBridgeClient<'_>, Address, Address, BytesN<32>, SigningKey) {
+    fn setup(
+        env: &Env,
+    ) -> (
+        CrossChainBridgeClient<'_>,
+        Address,
+        Address,
+        BytesN<32>,
+        SigningKey,
+    ) {
         let admin = Address::generate(env);
 
         let mut csprng = OsRng;
@@ -518,7 +551,9 @@ mod test {
 
         let user = Address::generate(&env);
         let token_admin = Address::generate(&env);
-        let token_addr = env.register_stellar_asset_contract_v2(token_admin).address();
+        let token_addr = env
+            .register_stellar_asset_contract_v2(token_admin)
+            .address();
         let token_client = TokenClient::new(&env, &token_addr);
         let token_sac = StellarAssetClient::new(&env, &token_addr);
 
@@ -554,8 +589,9 @@ mod test {
         env.mock_all_auths();
 
         let user = Address::generate(&env);
-        let token_addr =
-            env.register_stellar_asset_contract_v2(Address::generate(&env)).address();
+        let token_addr = env
+            .register_stellar_asset_contract_v2(Address::generate(&env))
+            .address();
 
         let proof = BytesN::from_array(&env, &[1u8; 32]);
         let bad_sig = BytesN::from_array(&env, &[0u8; 64]);
@@ -572,7 +608,9 @@ mod test {
         env.mock_all_auths();
 
         let user = Address::generate(&env);
-        let token_addr = env.register_stellar_asset_contract_v2(bridge_addr.clone()).address();
+        let token_addr = env
+            .register_stellar_asset_contract_v2(bridge_addr.clone())
+            .address();
         let token_client = TokenClient::new(&env, &token_addr);
 
         let eth_symbol = symbol_short!("ETH");
@@ -600,7 +638,9 @@ mod test {
 
         let user = Address::generate(&env);
         let token_admin = Address::generate(&env);
-        let token_addr = env.register_stellar_asset_contract_v2(token_admin).address();
+        let token_addr = env
+            .register_stellar_asset_contract_v2(token_admin)
+            .address();
         StellarAssetClient::new(&env, &token_addr).mint(&user, &1000);
 
         client.lock(
@@ -638,7 +678,9 @@ mod test {
 
         let user = Address::generate(&env);
         let token_admin = Address::generate(&env);
-        let token_addr = env.register_stellar_asset_contract_v2(token_admin).address();
+        let token_addr = env
+            .register_stellar_asset_contract_v2(token_admin)
+            .address();
         StellarAssetClient::new(&env, &token_addr).mint(&bridge_addr, &500);
 
         let proof_bytes = [55u8; 32];
@@ -677,7 +719,9 @@ mod test {
 
         let user = Address::generate(&env);
         let token_admin = Address::generate(&env);
-        let token_addr = env.register_stellar_asset_contract_v2(token_admin).address();
+        let token_addr = env
+            .register_stellar_asset_contract_v2(token_admin)
+            .address();
         StellarAssetClient::new(&env, &token_addr).mint(&user, &1000);
 
         client.lock(
@@ -717,7 +761,9 @@ mod test {
 
         let user = Address::generate(&env);
         let token_admin = Address::generate(&env);
-        let token_addr = env.register_stellar_asset_contract_v2(token_admin).address();
+        let token_addr = env
+            .register_stellar_asset_contract_v2(token_admin)
+            .address();
         StellarAssetClient::new(&env, &token_addr).mint(&user, &3000);
 
         client.lock(
@@ -745,5 +791,82 @@ mod test {
         assert_eq!(client.get_request(&0u64).unwrap().amount, 100);
         assert_eq!(client.get_request(&1u64).unwrap().amount, 200);
         assert_eq!(client.get_request(&2u64).unwrap().amount, 300);
+    }
+
+    // ── Authorization and rejection paths for `lock` ──────────────
+
+    fn funded_user(env: &Env, amount: i128) -> (Address, Address) {
+        let user = Address::generate(env);
+        let token_addr = env
+            .register_stellar_asset_contract_v2(Address::generate(env))
+            .address();
+        StellarAssetClient::new(env, &token_addr).mint(&user, &amount);
+        (user, token_addr)
+    }
+
+    #[test]
+    fn test_lock_requires_sender_auth() {
+        let env = Env::default();
+        let (client, _admin, bridge_addr, _pk, _sk) = setup(&env);
+        env.mock_all_auths();
+        let (user, token_addr) = funded_user(&env, 1000);
+        let token_client = TokenClient::new(&env, &token_addr);
+
+        // Drop the blanket authorization: nobody has signed for `user` now.
+        env.set_auths(&[]);
+        let res = client.try_lock(
+            &user,
+            &token_addr,
+            &600,
+            &symbol_short!("SOL"),
+            &String::from_str(&env, "0xabc"),
+        );
+
+        assert!(res.is_err());
+        assert_eq!(token_client.balance(&user), 1000);
+        assert_eq!(token_client.balance(&bridge_addr), 0);
+        assert_eq!(client.get_request(&1), None);
+    }
+
+    #[test]
+    fn test_lock_rejects_non_positive_amount() {
+        let env = Env::default();
+        let (client, _admin, bridge_addr, _pk, _sk) = setup(&env);
+        env.mock_all_auths();
+        let (user, token_addr) = funded_user(&env, 1000);
+        let token_client = TokenClient::new(&env, &token_addr);
+
+        for amount in [0i128, -5] {
+            let res = client.try_lock(
+                &user,
+                &token_addr,
+                &amount,
+                &symbol_short!("SOL"),
+                &String::from_str(&env, "0xabc"),
+            );
+            assert_eq!(res, Err(Ok(Error::InvalidAmount)));
+        }
+        assert_eq!(token_client.balance(&user), 1000);
+        assert_eq!(token_client.balance(&bridge_addr), 0);
+    }
+
+    #[test]
+    fn test_lock_rejected_while_paused_and_allowed_after_unpause() {
+        let env = Env::default();
+        let (client, _admin, bridge_addr, _pk, _sk) = setup(&env);
+        env.mock_all_auths();
+        let (user, token_addr) = funded_user(&env, 1000);
+        let token_client = TokenClient::new(&env, &token_addr);
+        let dest = String::from_str(&env, "0xabc");
+
+        client.set_paused(&true);
+        let res = client.try_lock(&user, &token_addr, &100, &symbol_short!("SOL"), &dest);
+        assert_eq!(res, Err(Ok(Error::ContractPaused)));
+        assert_eq!(token_client.balance(&bridge_addr), 0);
+
+        client.set_paused(&false);
+        client.lock(&user, &token_addr, &100, &symbol_short!("SOL"), &dest);
+        assert_eq!(token_client.balance(&user), 900);
+        assert_eq!(token_client.balance(&bridge_addr), 100);
     }
 }

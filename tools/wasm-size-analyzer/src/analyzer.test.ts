@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as fs from 'fs';
 import { WasmAnalyzer } from './analyzer';
 import type { AnalyzerConfig } from './types';
@@ -23,16 +23,14 @@ function createWasmBuffer(sections: Array<{ id: number; content: Buffer }>): Buf
 
 function encodeLEB128(value: number): Buffer {
   const bytes: number[] = [];
-
   do {
     let byte = value & 0x7f;
-    value >>= 7;
+    value >>>= 7;
     if (value !== 0) {
       byte |= 0x80;
     }
     bytes.push(byte);
   } while (value !== 0);
-
   return Buffer.from(bytes);
 }
 
@@ -41,8 +39,11 @@ function createCustomSection(name: string, content?: Buffer): { id: number; cont
   const nameLenBytes = encodeLEB128(nameBytes.length);
   const sectionContent = content || Buffer.alloc(0);
   const fullContent = Buffer.concat([nameLenBytes, nameBytes, sectionContent]);
-
   return { id: 0, content: fullContent };
+}
+
+function baseConfig(): AnalyzerConfig {
+  return { wasmPath: '/test/file.wasm', jsonOutput: false, warnThresholdKb: 64 };
 }
 
 describe('WasmAnalyzer', () => {
@@ -63,12 +64,7 @@ describe('WasmAnalyzer', () => {
       vi.mocked(fs.existsSync).mockReturnValue(true);
       (fs.readFileSync as unknown as ReturnType<typeof vi.fn>).mockReturnValue(wasmBuffer);
 
-      const analyzer = new WasmAnalyzer({
-        wasmPath: mockFilePath,
-        jsonOutput: false,
-        warnThresholdKb: 64,
-      });
-
+      const analyzer = new WasmAnalyzer({ ...baseConfig(), wasmPath: mockFilePath });
       const result = analyzer.analyze();
 
       expect(result.filePath).toBe(mockFilePath);
@@ -79,59 +75,38 @@ describe('WasmAnalyzer', () => {
 
     it('should throw for missing file', () => {
       vi.mocked(fs.existsSync).mockReturnValue(false);
-
-      const analyzer = new WasmAnalyzer({
-        wasmPath: mockFilePath,
-        jsonOutput: false,
-        warnThresholdKb: 64,
-      });
-
+      const analyzer = new WasmAnalyzer(baseConfig());
       expect(() => analyzer.analyze()).toThrow('File not found');
     });
 
     it('should throw for invalid magic bytes', () => {
       const invalidBuffer = Buffer.from([0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00]);
-
       vi.mocked(fs.existsSync).mockReturnValue(true);
       (fs.readFileSync as unknown as ReturnType<typeof vi.fn>).mockReturnValue(invalidBuffer);
-
-      const analyzer = new WasmAnalyzer({
-        wasmPath: mockFilePath,
-        jsonOutput: false,
-        warnThresholdKb: 64,
-      });
-
+      const analyzer = new WasmAnalyzer(baseConfig());
       expect(() => analyzer.analyze()).toThrow('bad magic bytes');
     });
 
     it('should throw for empty buffer', () => {
-      const emptyBuffer = Buffer.alloc(0);
-
       vi.mocked(fs.existsSync).mockReturnValue(true);
-      (fs.readFileSync as unknown as ReturnType<typeof vi.fn>).mockReturnValue(emptyBuffer);
-
-      const analyzer = new WasmAnalyzer({
-        wasmPath: mockFilePath,
-        jsonOutput: false,
-        warnThresholdKb: 64,
-      });
-
+      (fs.readFileSync as unknown as ReturnType<typeof vi.fn>).mockReturnValue(Buffer.alloc(0));
+      const analyzer = new WasmAnalyzer(baseConfig());
       expect(() => analyzer.analyze()).toThrow('file is too small');
     });
 
     it('should throw for truncated buffer', () => {
-      const truncatedBuffer = Buffer.from([0x00, 0x61, 0x73]);
-
       vi.mocked(fs.existsSync).mockReturnValue(true);
-      (fs.readFileSync as unknown as ReturnType<typeof vi.fn>).mockReturnValue(truncatedBuffer);
-
-      const analyzer = new WasmAnalyzer({
-        wasmPath: mockFilePath,
-        jsonOutput: false,
-        warnThresholdKb: 64,
-      });
-
+      (fs.readFileSync as unknown as ReturnType<typeof vi.fn>).mockReturnValue(Buffer.from([0x00, 0x61, 0x73]));
+      const analyzer = new WasmAnalyzer(baseConfig());
       expect(() => analyzer.analyze()).toThrow('file is too small');
+    });
+
+    it('should throw for unsupported version', () => {
+      const badVersion = Buffer.from([0x00, 0x61, 0x73, 0x6d, 0x02, 0x00, 0x00, 0x00]);
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+      (fs.readFileSync as unknown as ReturnType<typeof vi.fn>).mockReturnValue(badVersion);
+      const analyzer = new WasmAnalyzer(baseConfig());
+      expect(() => analyzer.analyze()).toThrow('unsupported version');
     });
   });
 
@@ -142,40 +117,18 @@ describe('WasmAnalyzer', () => {
         { id: 10, content: Buffer.alloc(50) },
       ];
       const wasmBuffer = createWasmBuffer(sections);
-
-      vi.mocked(fs.existsSync).mockReturnValue(true);
-      (fs.readFileSync as unknown as ReturnType<typeof vi.fn>).mockReturnValue(wasmBuffer);
-
-      const analyzer = new WasmAnalyzer({
-        wasmPath: mockFilePath,
-        jsonOutput: false,
-        warnThresholdKb: 64,
-      });
-
+      const analyzer = new WasmAnalyzer(baseConfig());
       const result = analyzer.parseSections(wasmBuffer);
 
       expect(result.length).toBe(2);
-      expect(result[0].id).toBe(1);
-      expect(result[0].name).toBe('Type');
-      expect(result[0].size).toBe(10);
-      expect(result[1].id).toBe(10);
-      expect(result[1].name).toBe('Code');
-      expect(result[1].size).toBe(50);
+      expect(result[0]).toMatchObject({ id: 1, name: 'Type', size: 10 });
+      expect(result[1]).toMatchObject({ id: 10, name: 'Code', size: 50 });
     });
 
     it('should parse custom sections with name', () => {
       const customSection = createCustomSection('name', Buffer.alloc(20));
       const wasmBuffer = createWasmBuffer([customSection]);
-
-      vi.mocked(fs.existsSync).mockReturnValue(true);
-      (fs.readFileSync as unknown as ReturnType<typeof vi.fn>).mockReturnValue(wasmBuffer);
-
-      const analyzer = new WasmAnalyzer({
-        wasmPath: mockFilePath,
-        jsonOutput: false,
-        warnThresholdKb: 64,
-      });
-
+      const analyzer = new WasmAnalyzer(baseConfig());
       const result = analyzer.parseSections(wasmBuffer);
 
       expect(result.length).toBe(1);
@@ -185,193 +138,139 @@ describe('WasmAnalyzer', () => {
     });
 
     it('should handle unknown section IDs', () => {
-      const sections = [{ id: 99, content: Buffer.alloc(5) }];
-      const wasmBuffer = createWasmBuffer(sections);
-
-      vi.mocked(fs.existsSync).mockReturnValue(true);
-      (fs.readFileSync as unknown as ReturnType<typeof vi.fn>).mockReturnValue(wasmBuffer);
-
-      const analyzer = new WasmAnalyzer({
-        wasmPath: mockFilePath,
-        jsonOutput: false,
-        warnThresholdKb: 64,
-      });
-
+      const wasmBuffer = createWasmBuffer([{ id: 99, content: Buffer.alloc(5) }]);
+      const analyzer = new WasmAnalyzer(baseConfig());
       const result = analyzer.parseSections(wasmBuffer);
+      expect(result[0]).toMatchObject({ id: 99, name: 'Unknown(99)' });
+    });
 
-      expect(result.length).toBe(1);
-      expect(result[0].id).toBe(99);
-      expect(result[0].name).toBe('Unknown(99)');
+    it('rejects section extending beyond EOF', () => {
+      // id=1, size=10 but only 2 bytes of payload present
+      const header = Buffer.from([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]);
+      const buf = Buffer.concat([header, Buffer.from([0x01, 0x0a, 0x00, 0x00])]);
+      const analyzer = new WasmAnalyzer(baseConfig());
+      expect(() => analyzer.parseSections(buf)).toThrow('section extends beyond EOF');
+    });
+
+    it('rejects truncated LEB128 section size', () => {
+      const header = Buffer.from([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]);
+      // section id then continuation byte but EOF
+      const buf = Buffer.concat([header, Buffer.from([0x01, 0x80])]);
+      const analyzer = new WasmAnalyzer(baseConfig());
+      expect(() => analyzer.parseSections(buf)).toThrow(/Malformed LEB128|truncated/i);
+    });
+
+    it('rejects LEB128 with more than 5 bytes', () => {
+      const header = Buffer.from([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]);
+      const buf = Buffer.concat([header, Buffer.from([0x01, 0x80, 0x80, 0x80, 0x80, 0x80, 0x00])]);
+      const analyzer = new WasmAnalyzer(baseConfig());
+      expect(() => analyzer.parseSections(buf)).toThrow(/more than 5 bytes/i);
+    });
+
+    it('rejects overflowing u32 LEB128', () => {
+      const header = Buffer.from([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]);
+      // 5th byte has high bits set -> overflow for u32
+      const buf = Buffer.concat([header, Buffer.from([0x01, 0x80, 0x80, 0x80, 0x80, 0x10])]);
+      const analyzer = new WasmAnalyzer(baseConfig());
+      expect(() => analyzer.parseSections(buf)).toThrow(/overflow/i);
+    });
+
+    it('rejects custom section name extending beyond section', () => {
+      const header = Buffer.from([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]);
+      // custom section, total size 2, nameLen says 10
+      const buf = Buffer.concat([header, Buffer.from([0x00, 0x02, 0x0a, 0x61])]);
+      const analyzer = new WasmAnalyzer(baseConfig());
+      expect(() => analyzer.parseSections(buf)).toThrow(/name extends beyond section|section extends beyond EOF/i);
+    });
+
+    it('rejects malformed trailing data after last section', () => {
+      const valid = createWasmBuffer([{ id: 1, content: Buffer.alloc(1) }]);
+      // A trailing byte is interpreted as a new section header and must be rejected as malformed.
+      const withTrailing = Buffer.concat([valid, Buffer.from([0x00])]);
+      const analyzer = new WasmAnalyzer(baseConfig());
+      expect(() => analyzer.parseSections(withTrailing)).toThrow(/Malformed LEB128|truncated|trailing/i);
     });
   });
 
   describe('getDataSegmentSize', () => {
     it('should return size of data section', () => {
-      const sections = [
-        { id: 11, name: 'Data', size: 500, startOffset: 100 },
-      ];
-
-      const analyzer = new WasmAnalyzer({
-        wasmPath: mockFilePath,
-        jsonOutput: false,
-        warnThresholdKb: 64,
-      });
-
-      expect(analyzer.getDataSegmentSize(sections)).toBe(500);
+      const analyzer = new WasmAnalyzer(baseConfig());
+      expect(analyzer.getDataSegmentSize([{ id: 11, name: 'Data', size: 500, startOffset: 100 }])).toBe(500);
     });
 
     it('should return 0 when no data section exists', () => {
-      const sections = [
-        { id: 1, name: 'Type', size: 10, startOffset: 8 },
-      ];
-
-      const analyzer = new WasmAnalyzer({
-        wasmPath: mockFilePath,
-        jsonOutput: false,
-        warnThresholdKb: 64,
-      });
-
-      expect(analyzer.getDataSegmentSize(sections)).toBe(0);
+      const analyzer = new WasmAnalyzer(baseConfig());
+      expect(analyzer.getDataSegmentSize([{ id: 1, name: 'Type', size: 10, startOffset: 8 }])).toBe(0);
     });
   });
 
   describe('checkOversized', () => {
     it('should return true when size exceeds 64KB', () => {
-      const analyzer = new WasmAnalyzer({
-        wasmPath: mockFilePath,
-        jsonOutput: false,
-        warnThresholdKb: 64,
-      });
-
+      const analyzer = new WasmAnalyzer(baseConfig());
       expect(analyzer.checkOversized(70000)).toBe(true);
     });
 
     it('should return false when size is under 64KB', () => {
-      const analyzer = new WasmAnalyzer({
-        wasmPath: mockFilePath,
-        jsonOutput: false,
-        warnThresholdKb: 64,
-      });
-
+      const analyzer = new WasmAnalyzer(baseConfig());
       expect(analyzer.checkOversized(50000)).toBe(false);
     });
 
     it('should return false when size equals exactly 64KB', () => {
-      const analyzer = new WasmAnalyzer({
-        wasmPath: mockFilePath,
-        jsonOutput: false,
-        warnThresholdKb: 64,
-      });
-
+      const analyzer = new WasmAnalyzer(baseConfig());
       expect(analyzer.checkOversized(65536)).toBe(false);
     });
   });
 
   describe('generateWarnings', () => {
     it('should warn about oversized binary', () => {
-      const analyzer = new WasmAnalyzer({
-        wasmPath: mockFilePath,
-        jsonOutput: false,
-        warnThresholdKb: 64,
-      });
-
+      const analyzer = new WasmAnalyzer(baseConfig());
       const warnings = analyzer.generateWarnings([], 70000, 0);
-
       expect(warnings.some((w) => w.includes('exceeds recommended size'))).toBe(true);
     });
 
     it('should warn about large data segments', () => {
-      const analyzer = new WasmAnalyzer({
-        wasmPath: mockFilePath,
-        jsonOutput: false,
-        warnThresholdKb: 64,
-      });
-
+      const analyzer = new WasmAnalyzer(baseConfig());
       const warnings = analyzer.generateWarnings([], 1000, 200);
-
       expect(warnings.some((w) => w.includes('Large data segment'))).toBe(true);
     });
 
     it('should warn about large custom sections', () => {
-      const sections = [
-        { id: 0, name: 'debug_info', size: 500, startOffset: 0 },
-      ];
-
-      const analyzer = new WasmAnalyzer({
-        wasmPath: mockFilePath,
-        jsonOutput: false,
-        warnThresholdKb: 64,
-      });
-
+      const sections = [{ id: 0, name: 'debug_info', size: 500, startOffset: 0 }];
+      const analyzer = new WasmAnalyzer(baseConfig());
       const warnings = analyzer.generateWarnings(sections, 1000, 0);
-
       expect(warnings.some((w) => w.includes('Large custom section'))).toBe(true);
     });
 
     it('should not warn for small files', () => {
-      const analyzer = new WasmAnalyzer({
-        wasmPath: mockFilePath,
-        jsonOutput: false,
-        warnThresholdKb: 64,
-      });
-
+      const analyzer = new WasmAnalyzer(baseConfig());
       const warnings = analyzer.generateWarnings([], 1000, 50);
-
       expect(warnings.length).toBe(0);
     });
   });
 
   describe('generateRecommendations', () => {
     it('should recommend opt-level for oversized binaries', () => {
-      const analyzer = new WasmAnalyzer({
-        wasmPath: mockFilePath,
-        jsonOutput: false,
-        warnThresholdKb: 64,
-      });
-
+      const analyzer = new WasmAnalyzer(baseConfig());
       const recommendations = analyzer.generateRecommendations(70000, []);
-
       expect(recommendations.some((r) => r.includes('opt-level'))).toBe(true);
       expect(recommendations.some((r) => r.includes('LTO'))).toBe(true);
     });
 
     it('should recommend stripping debug symbols for custom sections', () => {
-      const sections = [
-        { id: 0, name: 'debug', size: 10, startOffset: 0 },
-      ];
-
-      const analyzer = new WasmAnalyzer({
-        wasmPath: mockFilePath,
-        jsonOutput: false,
-        warnThresholdKb: 64,
-      });
-
-      const recommendations = analyzer.generateRecommendations(1000, sections);
-
+      const analyzer = new WasmAnalyzer(baseConfig());
+      const recommendations = analyzer.generateRecommendations(1000, [{ id: 0, name: 'debug', size: 10, startOffset: 0 }]);
       expect(recommendations.some((r) => r.includes('wasm-strip'))).toBe(true);
     });
 
     it('should recommend wasm-opt for moderately large files', () => {
-      const analyzer = new WasmAnalyzer({
-        wasmPath: mockFilePath,
-        jsonOutput: false,
-        warnThresholdKb: 64,
-      });
-
+      const analyzer = new WasmAnalyzer(baseConfig());
       const recommendations = analyzer.generateRecommendations(40000, []);
-
       expect(recommendations.some((r) => r.includes('wasm-opt'))).toBe(true);
     });
 
     it('should not recommend for small files', () => {
-      const analyzer = new WasmAnalyzer({
-        wasmPath: mockFilePath,
-        jsonOutput: false,
-        warnThresholdKb: 64,
-      });
-
+      const analyzer = new WasmAnalyzer(baseConfig());
       const recommendations = analyzer.generateRecommendations(1000, []);
-
       expect(recommendations.length).toBe(0);
     });
   });

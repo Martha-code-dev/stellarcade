@@ -3,7 +3,7 @@
 mod storage;
 mod types;
 
-use soroban_sdk::{contract, contractimpl, contracttype, contracterror, Address, Env, Symbol};
+use soroban_sdk::{contract, contracterror, contractimpl, contracttype, Address, Env, Symbol};
 
 pub use types::{
     ActiveBountySummary, AdjudicationReadiness, Bounty, BountyClaimState,
@@ -181,8 +181,7 @@ impl AntiCheatBounties {
                 match bounty.status {
                     BountyStatus::Open => {
                         open_count = open_count.saturating_add(1);
-                        total_open_reward =
-                            total_open_reward.saturating_add(bounty.reward);
+                        total_open_reward = total_open_reward.saturating_add(bounty.reward);
                     }
                     BountyStatus::UnderReview => {
                         under_review_count = under_review_count.saturating_add(1);
@@ -217,8 +216,7 @@ impl AntiCheatBounties {
                     BountyStatus::Open => {
                         if current_ledger <= bounty.report_deadline_ledger {
                             live_count = live_count.saturating_add(1);
-                            total_live_reward =
-                                total_live_reward.saturating_add(bounty.reward);
+                            total_live_reward = total_live_reward.saturating_add(bounty.reward);
                         }
                     }
                     BountyStatus::UnderReview => {
@@ -285,11 +283,9 @@ impl AntiCheatBounties {
         let in_claim_window = current_ledger > bounty.report_deadline_ledger
             && current_ledger <= claim_window_end_ledger;
 
-        let ledgers_until_window_end = if current_ledger <= claim_window_end_ledger {
-            claim_window_end_ledger - current_ledger
-        } else {
-            0
-        };
+        // Saturating subtraction keeps the zero-state past the window end
+        // without the manual guard clippy rejects under -D warnings (#1590).
+        let ledgers_until_window_end = claim_window_end_ledger.saturating_sub(current_ledger);
 
         BountyClaimWindowAccessor {
             bounty_id,
@@ -314,9 +310,8 @@ impl AntiCheatBounties {
                 let report_count = storage::get_report_count(&env, bounty_id);
                 let has_enough_reports = report_count >= bounty.min_reporters;
                 let deadline_passed = current_ledger > bounty.report_deadline_ledger;
-                let ready_to_adjudicate = has_enough_reports
-                    && deadline_passed
-                    && bounty.status == BountyStatus::Open;
+                let ready_to_adjudicate =
+                    has_enough_reports && deadline_passed && bounty.status == BountyStatus::Open;
                 AdjudicationReadiness {
                     bounty_id,
                     exists: true,

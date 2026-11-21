@@ -5,7 +5,7 @@ import * as path from 'path';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import fg from 'fast-glob';
-import { scanFunctions } from './ast-scanner';
+import { scanFunctions, scanHelpers } from './ast-scanner';
 import { checkAll } from './rules';
 import type { LinterConfig, LintResult, Violation } from './types';
 
@@ -47,9 +47,13 @@ export function lintDirectory(contractsDir: string): LintResult {
   for (const file of files) {
     const source = fs.readFileSync(file, 'utf-8');
     const relativePath = path.relative(contractsDir, file);
-    const functions = scanFunctions(source, relativePath);
-    functionsScanned += functions.length;
-    violations.push(...checkAll(functions));
+    const publicFunctions = scanFunctions(source, relativePath);
+    // Private helpers are scanned as context only: rules uses them to see
+    // nested storage writes and authorization performed on the caller's
+    // behalf, but they are never reported as public entry points.
+    const helpers = scanHelpers(source, relativePath);
+    functionsScanned += publicFunctions.length;
+    violations.push(...checkAll([...publicFunctions, ...helpers]));
   }
 
   return { filesScanned: files.length, functionsScanned, violations };
@@ -66,7 +70,7 @@ function printReport(result: LintResult): void {
 
   console.log(chalk.red.bold(`${result.violations.length} violation(s) found:\n`));
   for (const v of result.violations) {
-    console.log(chalk.red(`  ✗ ${v.filePath}:${v.line} — ${v.message}`));
+    console.log(chalk.red(`  ✗ ${v.filePath}:${v.line}: ${v.message}`));
     console.log(chalk.gray(`    ${v.remediation}`));
   }
   console.log('');

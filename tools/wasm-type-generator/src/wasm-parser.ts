@@ -68,7 +68,7 @@ export interface SpecEnum {
 export interface UnionCase {
   name: string;
   doc?: string;
-  type?: SorobanType;
+  types: SorobanType[]; // zero = void-like, one = single payload, >1 = multi-value
 }
 
 export interface SpecUnion {
@@ -85,88 +85,122 @@ export interface ContractSpecResult {
   specEntries: SpecEntry[];
 }
 
-/**
- * Extracts custom sections from WASM byte buffer.
- */
+export class WasmParseError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'WasmParseError';
+  }
+}
+
+export class XdrDecodeError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'XdrDecodeError';
+  }
+}
+
+function readVarUint32(buffer: Buffer, offset: number, limit: number): { value: number; next: number } {
+  let value = 0;
+  let shift = 0;
+  let bytesRead = 0;
+  while (offset < limit) {
+    const byte = buffer[offset];
+    offset += 1;
+    bytesRead += 1;
+    if (bytesRead > 5) {
+      throw new WasmParseError('Malformed LEB128: more than 5 bytes for u32');
+    }
+    value |= (byte & 0x7f) << shift;
+    if ((byte & 0x80) === 0) {
+      if (shift === 28 && (byte & 0x70) !== 0) {
+        throw new WasmParseError('Malformed LEB128: u32 overflow');
+      }
+      return { value: value >>> 0, next: offset };
+    }
+    shift += 7;
+  }
+  throw new WasmParseError('Malformed LEB128: truncated value');
+}
+
 export function extractWasmCustomSection(wasmBuffer: Buffer, sectionName: string): Buffer[] {
-  const sections: Buffer[] = [];
-  
-  // Standard WASM magic & version check
   if (wasmBuffer.length < 8) {
-    return sections;
+    throw new WasmParseError('Invalid WASM: file too small');
   }
   const magic = wasmBuffer.subarray(0, 4).toString('hex');
   if (magic !== '0061736d') {
-    return sections;
+    throw new WasmParseError('Invalid WASM: bad magic bytes');
+  }
+  const version = wasmBuffer.readUInt32LE(4);
+  if (version !== 1) {
+    throw new WasmParseError(`Invalid WASM: unsupported version ${version}`);
   }
 
+  const sections: Buffer[] = [];
   let offset = 8;
   while (offset < wasmBuffer.length) {
     const sectionId = wasmBuffer[offset++];
-    
-    // Read varuint32 section size
-    let sectionSize = 0;
-    let shift = 0;
-    while (offset < wasmBuffer.length) {
-      const byte = wasmBuffer[offset++];
-      sectionSize |= (byte & 0x7f) << shift;
-      if ((byte & 0x80) === 0) break;
-      shift += 7;
+    const sizeInfo = readVarUint32(wasmBuffer, offset, wasmBuffer.length);
+    offset = sizeInfo.next;
+    const sectionSize = sizeInfo.value;
+    const sectionEnd = offset + sectionSize;
+    if (sectionEnd > wasmBuffer.length) {
+      throw new WasmParseError('Invalid WASM: section extends beyond EOF');
     }
 
-    const sectionEnd = offset + sectionSize;
-
-    if (sectionId === 0) { // Custom section
-      // Read varuint32 name length
-      let nameLen = 0;
-      shift = 0;
-      let nameOffset = offset;
-      while (nameOffset < sectionEnd) {
-        const byte = wasmBuffer[nameOffset++];
-        nameLen |= (byte & 0x7f) << shift;
-        if ((byte & 0x80) === 0) break;
-        shift += 7;
+    if (sectionId === 0) {
+      const nameLenInfo = readVarUint32(wasmBuffer, offset, sectionEnd);
+      const nameLen = nameLenInfo.value;
+      const nameStart = nameLenInfo.next;
+      const nameEnd = nameStart + nameLen;
+      if (nameEnd > sectionEnd) {
+        throw new WasmParseError('Invalid WASM: custom section name extends beyond section');
       }
-      const name = wasmBuffer.subarray(nameOffset, nameOffset + nameLen).toString('utf8');
+      const name = wasmBuffer.subarray(nameStart, nameEnd).toString('utf8');
       if (name === sectionName) {
-        const payload = wasmBuffer.subarray(nameOffset + nameLen, sectionEnd);
-        sections.push(Buffer.from(payload));
+        sections.push(Buffer.from(wasmBuffer.subarray(nameEnd, sectionEnd)));
       }
     }
 
     offset = sectionEnd;
   }
-
+  if (offset !== wasmBuffer.length) {
+    throw new WasmParseError('Invalid WASM: trailing data after last section');
+  }
   return sections;
 }
 
 class XdrReader {
   private offset = 0;
-  constructor(private buffer: Buffer) {}
+  constructor(private buffer: Buffer, private label = 'spec') {}
 
   get hasMore(): boolean {
     return this.offset < this.buffer.length;
   }
 
-  readU32(): number {
-    if (this.offset + 4 > this.buffer.length) return 0;
-    const val = this.buffer.readUInt32BE(this.offset);
-    this.offset += 4;
-    return val;
+  private require(n: number, what: string): void {
+    if (n < 0 || this.offset + n > this.buffer.length) {
+      throw new XdrDecodeError(`Truncated ${this.label}: expected ${n} byte(s) for ${what}`);
+    }
   }
 
-  readI32(): number {
-    if (this.offset + 4 > this.buffer.length) return 0;
-    const val = this.buffer.readInt32BE(this.offset);
+  readU32(): number {
+    this.require(4, 'u32');
+    const val = this.buffer.readUInt32BE(this.offset);
     this.offset += 4;
-    return val;
+    return val >>> 0;
   }
 
   readString(): string {
     const len = this.readU32();
-    if (len === 0) return '';
+    this.require(len, 'string bytes');
     const str = this.buffer.subarray(this.offset, this.offset + len).toString('utf8');
     const padding = (4 - (len % 4)) % 4;
+    this.require(padding, 'string padding');
+    for (let i = 0; i < padding; i++) {
+      if (this.buffer[this.offset + len + i] !== 0) {
+        throw new XdrDecodeError(`Invalid ${this.label}: non-zero XDR string padding`);
+      }
+    }
     this.offset += len + padding;
     return str;
   }
@@ -192,47 +226,44 @@ class XdrReader {
       case 15: return { kind: 'string' };
       case 16: return { kind: 'symbol' };
       case 17: return { kind: 'address' };
-      case 1000: { // Option
+      case 1000: {
         const valueType = this.readTypeDef();
         return { kind: 'option', valueType };
       }
-      case 1001: { // Result
+      case 1001: {
         const okType = this.readTypeDef();
         const errorType = this.readTypeDef();
         return { kind: 'result', okType, errorType };
       }
-      case 1002: { // Vec
+      case 1002: {
         const elementType = this.readTypeDef();
         return { kind: 'vec', elementType };
       }
-      case 1003: { // Map
+      case 1003: {
         const keyType = this.readTypeDef();
         const valueType = this.readTypeDef();
         return { kind: 'map', keyType, valueType };
       }
-      case 1004: { // Tuple
+      case 1004: {
         const count = this.readU32();
         const elementTypes: SorobanType[] = [];
-        for (let i = 0; i < count; i++) {
-          elementTypes.push(this.readTypeDef());
-        }
+        for (let i = 0; i < count; i++) elementTypes.push(this.readTypeDef());
         return { kind: 'tuple', elementTypes };
       }
-      case 1005: { // BytesN
+      case 1005: {
         const n = this.readU32();
         return { kind: 'bytesN', n };
       }
-      case 2000: { // UDT
+      case 2000: {
         const name = this.readString();
         return { kind: 'udt', name };
       }
       default:
-        return { kind: 'val' };
+        throw new XdrDecodeError(`Unknown ScSpecType discriminant: ${kind}`);
     }
   }
 
-  readSpecEntry(): SpecEntry | null {
-    if (!this.hasMore) return null;
+  readSpecEntry(): SpecEntry {
     const kind = this.readU32();
     switch (kind) {
       case 0: { // FunctionV0
@@ -248,20 +279,12 @@ class XdrReader {
         }
         const outputCount = this.readU32();
         const outputs: SorobanType[] = [];
-        for (let i = 0; i < outputCount; i++) {
-          outputs.push(this.readTypeDef());
-        }
-        return {
-          kind: 'function',
-          name,
-          doc: doc || undefined,
-          inputs,
-          outputs
-        };
+        for (let i = 0; i < outputCount; i++) outputs.push(this.readTypeDef());
+        return { kind: 'function', name, doc: doc || undefined, inputs, outputs };
       }
       case 1: { // StructV0
         const doc = this.readString();
-        const lib = this.readString();
+        void this.readString(); // lib
         const name = this.readString();
         const fieldCount = this.readU32();
         const fields: StructField[] = [];
@@ -271,36 +294,27 @@ class XdrReader {
           const type = this.readTypeDef();
           fields.push({ name: fieldName, doc: fieldDoc || undefined, type });
         }
-        return {
-          kind: 'struct',
-          name,
-          doc: doc || undefined,
-          fields
-        };
+        return { kind: 'struct', name, doc: doc || undefined, fields };
       }
       case 2: { // UnionV0
         const doc = this.readString();
-        const lib = this.readString();
+        void this.readString(); // lib
         const name = this.readString();
         const caseCount = this.readU32();
         const cases: UnionCase[] = [];
         for (let i = 0; i < caseCount; i++) {
           const caseDoc = this.readString();
           const caseName = this.readString();
-          const hasType = this.readU32();
-          const type = hasType ? this.readTypeDef() : undefined;
-          cases.push({ name: caseName, doc: caseDoc || undefined, type });
+          const typeCount = this.readU32();
+          const types: SorobanType[] = [];
+          for (let t = 0; t < typeCount; t++) types.push(this.readTypeDef());
+          cases.push({ name: caseName, doc: caseDoc || undefined, types });
         }
-        return {
-          kind: 'union',
-          name,
-          doc: doc || undefined,
-          cases
-        };
+        return { kind: 'union', name, doc: doc || undefined, cases };
       }
       case 3: { // EnumV0
         const doc = this.readString();
-        const lib = this.readString();
+        void this.readString(); // lib
         const name = this.readString();
         const caseCount = this.readU32();
         const cases: EnumCase[] = [];
@@ -310,15 +324,30 @@ class XdrReader {
           const value = this.readU32();
           cases.push({ name: caseName, value, doc: caseDoc || undefined });
         }
-        return {
-          kind: 'enum',
-          name,
-          doc: doc || undefined,
-          cases
-        };
+        return { kind: 'enum', name, doc: doc || undefined, cases };
+      }
+      case 4: { // ErrorEnumV0
+        const doc = this.readString();
+        void this.readString(); // lib
+        const name = this.readString();
+        const caseCount = this.readU32();
+        const cases: EnumCase[] = [];
+        for (let i = 0; i < caseCount; i++) {
+          const caseDoc = this.readString();
+          const caseName = this.readString();
+          const value = this.readU32();
+          cases.push({ name: caseName, value, doc: caseDoc || undefined });
+        }
+        return { kind: 'enum', name, doc: doc || undefined, cases };
       }
       default:
-        return null;
+        throw new XdrDecodeError(`Unknown spec entry discriminant: ${kind}`);
+    }
+  }
+
+  finish(): void {
+    if (this.offset !== this.buffer.length) {
+      throw new XdrDecodeError(`Unexpected trailing bytes in ${this.label} payload`);
     }
   }
 }
@@ -328,24 +357,41 @@ export function parseWasmContractSpec(wasmBuffer: Buffer): ContractSpecResult {
   const envSections = extractWasmCustomSection(wasmBuffer, 'contractenvmetav0');
 
   if (specSections.length === 0) {
-    throw new Error('WASM binary does not contain a "contractspecv0" custom section.');
+    throw new WasmParseError('WASM binary does not contain a "contractspecv0" custom section.');
   }
 
   let protocolVersion: number | undefined;
   if (envSections.length > 0) {
-    const reader = new XdrReader(envSections[0]);
-    protocolVersion = reader.readU32();
+    // Best-effort: env meta encoding varies; must not block strict spec decoding.
+    try {
+      const reader = new XdrReader(envSections[0], 'env meta');
+      const count = reader.readU32();
+      for (let i = 0; i < count; i++) {
+        const key = reader.readString();
+        const valKind = reader.readU32();
+        if ((key === 'rsver' || key === 'interface_version') && valKind === 5) {
+          protocolVersion = reader.readU32();
+          break;
+        }
+        if ((key === 'rsver' || key === 'interface_version') && valKind === 6) {
+          reader.readU32();
+          protocolVersion = reader.readU32();
+          break;
+        }
+        break;
+      }
+    } catch {
+      protocolVersion = undefined;
+    }
   }
 
   const specEntries: SpecEntry[] = [];
   for (const sectionPayload of specSections) {
-    const reader = new XdrReader(sectionPayload);
+    const reader = new XdrReader(sectionPayload, 'spec');
     while (reader.hasMore) {
-      const entry = reader.readSpecEntry();
-      if (entry) {
-        specEntries.push(entry);
-      }
+      specEntries.push(reader.readSpecEntry());
     }
+    reader.finish();
   }
 
   return {

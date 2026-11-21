@@ -6,6 +6,7 @@ const {
   getAuditLogs,
 } = require('../controllers/users.controller');
 const auth = require('../middleware/auth.middleware');
+const { optionalAuth } = require('../middleware/auth.middleware');
 const { rateLimit } = require('../middleware/rate-limit.middleware');
 
 const router = express.Router();
@@ -16,6 +17,8 @@ const routeDocs = [
     path: '/profile',
     operationId: 'getUserProfile',
     summary: 'Fetch a profile by wallet address',
+    description:
+      'Public reads use an allowlist that excludes Telegram identifiers. An authenticated owner additionally receives linked-account detail.',
     tags: ['Users'],
     parameters: [
       {
@@ -65,7 +68,9 @@ const routeDocs = [
     method: 'get',
     path: '/audit-logs',
     operationId: 'listUserAuditLogs',
-    summary: 'List audit log entries',
+    summary: 'List the authenticated actor\'s audit log entries',
+    description:
+      'Results are scoped to the authenticated actor. Global reads require an explicit admin role policy.',
     tags: ['Users'],
     parameters: [
       {
@@ -176,6 +181,30 @@ const routeDocs = [
           },
         },
       },
+      401: {
+        description: 'Authentication failed',
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/AuthErrorResponse' },
+          },
+        },
+      },
+      403: {
+        description: 'Body wallet does not match the authenticated wallet',
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/ErrorEnvelope' },
+          },
+        },
+      },
+      409: {
+        description: 'Username is already reserved by another wallet',
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/ErrorEnvelope' },
+          },
+        },
+      },
       500: {
         description: 'Unexpected server error',
         content: {
@@ -217,8 +246,32 @@ const routeDocs = [
           },
         },
       },
+      401: {
+        description: 'Authentication failed',
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/AuthErrorResponse' },
+          },
+        },
+      },
+      403: {
+        description: 'Body wallet does not match the authenticated wallet',
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/ErrorEnvelope' },
+          },
+        },
+      },
       404: {
         description: 'No existing profile for that wallet address — use /create first',
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/ErrorEnvelope' },
+          },
+        },
+      },
+      409: {
+        description: 'Username is already reserved by another wallet',
         content: {
           'application/json': {
             schema: { $ref: '#/components/schemas/ErrorEnvelope' },
@@ -237,10 +290,10 @@ const routeDocs = [
   },
 ];
 
-router.get('/profile', getProfile);
+router.get('/profile', optionalAuth, getProfile);
 router.get('/audit-logs', auth, rateLimit('auth'), getAuditLogs);
-router.post('/create', rateLimit('auth'), createProfile);
-router.post('/update', rateLimit('auth'), updateProfile);
+router.post('/create', auth, rateLimit('auth'), createProfile);
+router.post('/update', auth, rateLimit('auth'), updateProfile);
 
 module.exports = router;
 module.exports.routeDocs = routeDocs;

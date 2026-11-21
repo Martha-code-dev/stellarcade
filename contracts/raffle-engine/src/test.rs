@@ -3,7 +3,7 @@ use soroban_sdk::{testutils::Address as _, Address, Env, String};
 
 fn setup_client(env: &Env) -> (RaffleEngineClient<'_>, Address) {
     let admin = Address::generate(env);
-    let contract_id = env.register_contract(None, RaffleEngine);
+    let contract_id = env.register(RaffleEngine, ());
     let client = RaffleEngineClient::new(env, &contract_id);
     client.init(&admin, &10);
     (client, admin)
@@ -43,4 +43,15 @@ fn test_missing_round_returns_predictable_state() {
         readiness.blocker,
         Some(String::from_str(&env, "missing_round"))
     );
+}
+
+#[test]
+fn test_upsert_round_requires_admin_authorization() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, admin) = setup_client(&env);
+
+    env.mock_auths(&[]);
+    let result = client.try_upsert_round(&admin, &42, &20, &6, &10, &6, &4, &true);
+    assert!(result.is_err());
 }

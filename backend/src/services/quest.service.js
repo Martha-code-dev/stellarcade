@@ -1,15 +1,30 @@
 const UserModel = require('../models/User.model');
 const QuestModel = require('../models/Quest.model');
-const logger = require('../utils/logger');
 
 /**
  * Service for managing quest-related business logic.
+ *
+ * Quest state has three deliberately separate meanings (#1588):
+ *  - completed: progress >= target. Derived from progress, and recomputed by
+ *    web consumers from progress. Earning the objective is not a payout.
+ *  - claimable: completed && !claimed, i.e. eligible for a reward that has
+ *    not been paid yet. Web gates this behind future XP/badge minting.
+ *  - claimed (settled): the reward was actually paid or minted. Only a real
+ *    settlement flow may set it; progress writes and daily login never do.
+ *
+ * This mapping exposes `claimed` unchanged from persistence so an earned
+ * quest is never presented to consumers as an already-settled payout.
  */
 const questService = {
   /**
    * Returns every quest with this player's progress against it. Players who
    * haven't linked an account yet (or have no progress rows) still see the
-   * full quest catalog, just at zero/unclaimed — never a 404 or an empty list.
+   * full quest catalog, just at zero/unclaimed, never a 404 or an empty list.
+   *
+   * This is a public read. It deliberately has no side effects: a daily
+   * check-in is an explicit, owner-authenticated mutation (see
+   * `checkInDaily`), so viewing another player's progress cannot extend
+   * their streak and viewing your own cannot do it by accident.
    *
    * @param {string} walletAddress
    * @returns {Promise<Array<{questId: string, progress: number, target: number, claimed: boolean, streak: number}>>}
@@ -28,15 +43,6 @@ const questService = {
       }));
     }
 
-    // Checking your quests is itself the "showed up today" signal for
-    // platforms (Telegram) that have no other profile-visit hook —
-    // best-effort, must never fail the actual quest read.
-    try {
-      await QuestModel.recordDailyLogin(user.id);
-    } catch (err) {
-      logger.error('Failed to record daily-login quest progress:', err);
-    }
-
     const rows = await QuestModel.getProgressForUser(user.id);
     return rows.map((row) => ({
       questId: row.questId,
@@ -45,6 +51,26 @@ const questService = {
       claimed: Boolean(row.claimed),
       streak: Number(row.streak),
     }));
+  },
+
+  /**
+   * Records the daily login quest for the authenticated user, resolved from
+   * the JWT id on the request. Never accepts a wallet address from the
+   * caller, so one player cannot check in on another player's behalf.
+   *
+   * @param {number|string} userId
+   * @returns {Promise<object|null>}
+   */
+  checkInDaily: async (userId) => {
+    const user = await UserModel.findById(userId);
+    if (!user) {
+      const error = new Error('Authenticated user was not found.');
+      error.statusCode = 404;
+      error.code = 'USER_NOT_FOUND';
+      throw error;
+    }
+
+    return QuestModel.recordDailyLogin(user.id);
   },
 };
 

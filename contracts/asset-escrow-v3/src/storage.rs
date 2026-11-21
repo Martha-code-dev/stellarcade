@@ -1,5 +1,8 @@
+use crate::types::{
+    BalanceLockSummary, DataKey, LockStatus, LockedAsset, ReleaseCooldownAccessor,
+    UnlockReadinessInfo,
+};
 use soroban_sdk::{Address, Env, Vec};
-use crate::types::{BalanceLockSummary, DataKey, LockStatus, LockedAsset, ReleaseCooldownAccessor, UnlockReadinessInfo};
 
 /// Retrieve a locked asset by beneficiary and lock_id.
 /// Returns None if not found.
@@ -42,17 +45,15 @@ pub fn get_beneficiary_total_locked(env: &Env, beneficiary: &Address) -> i128 {
 
 /// Update cached total locked amount.
 pub fn set_beneficiary_total_locked(env: &Env, beneficiary: &Address, total: i128) {
-    env.storage()
-        .persistent()
-        .set(&DataKey::BeneficiaryTotalLocked(beneficiary.clone()), &total);
+    env.storage().persistent().set(
+        &DataKey::BeneficiaryTotalLocked(beneficiary.clone()),
+        &total,
+    );
 }
 
 /// Compute balance lock summary for a beneficiary.
 /// Handles empty state and missing locks gracefully.
-pub fn compute_balance_lock_summary(
-    env: &Env,
-    beneficiary: &Address,
-) -> BalanceLockSummary {
+pub fn compute_balance_lock_summary(env: &Env, beneficiary: &Address) -> BalanceLockSummary {
     let lock_ids = get_beneficiary_lock_ids(env, beneficiary);
 
     if lock_ids.is_empty() {
@@ -66,7 +67,7 @@ pub fn compute_balance_lock_summary(
         };
     }
 
-    let current_ledger = env.ledger().sequence() as u32;
+    let current_ledger = env.ledger().sequence();
     let mut total_locked: i128 = 0;
     let mut ready_to_unlock_count: u32 = 0;
     let mut ready_to_unlock_amount: i128 = 0;
@@ -74,12 +75,14 @@ pub fn compute_balance_lock_summary(
 
     for lock_id in lock_ids.iter() {
         if let Some(locked_asset) = get_lock(env, beneficiary, lock_id) {
-            total_locked = total_locked.checked_add(locked_asset.amount)
+            total_locked = total_locked
+                .checked_add(locked_asset.amount)
                 .unwrap_or(total_locked);
 
             if locked_asset.unlock_ledger <= current_ledger {
                 ready_to_unlock_count += 1;
-                ready_to_unlock_amount = ready_to_unlock_amount.checked_add(locked_asset.amount)
+                ready_to_unlock_amount = ready_to_unlock_amount
+                    .checked_add(locked_asset.amount)
                     .unwrap_or(ready_to_unlock_amount);
             }
 
@@ -104,12 +107,8 @@ pub fn compute_balance_lock_summary(
 
 /// Check unlock readiness for a specific lock.
 /// Handles missing lock gracefully.
-pub fn get_unlock_readiness(
-    env: &Env,
-    beneficiary: &Address,
-    lock_id: u32,
-) -> UnlockReadinessInfo {
-    let current_ledger = env.ledger().sequence() as u32;
+pub fn get_unlock_readiness(env: &Env, beneficiary: &Address, lock_id: u32) -> UnlockReadinessInfo {
+    let current_ledger = env.ledger().sequence();
 
     if let Some(locked_asset) = get_lock(env, beneficiary, lock_id) {
         let status = if locked_asset.unlock_ledger <= current_ledger {
@@ -118,11 +117,7 @@ pub fn get_unlock_readiness(
             LockStatus::Locked
         };
 
-        let ledgers_remaining = if locked_asset.unlock_ledger > current_ledger {
-            locked_asset.unlock_ledger - current_ledger
-        } else {
-            0
-        };
+        let ledgers_remaining = locked_asset.unlock_ledger.saturating_sub(current_ledger);
 
         UnlockReadinessInfo {
             status,
@@ -152,15 +147,11 @@ pub fn get_release_cooldown(
     beneficiary: &Address,
     lock_id: u32,
 ) -> ReleaseCooldownAccessor {
-    let current_ledger = env.ledger().sequence() as u32;
+    let current_ledger = env.ledger().sequence();
 
     if let Some(locked_asset) = get_lock(env, beneficiary, lock_id) {
         let is_in_cooldown = locked_asset.unlock_ledger > current_ledger;
-        let cooldown_remaining_ledgers = if is_in_cooldown {
-            locked_asset.unlock_ledger - current_ledger
-        } else {
-            0
-        };
+        let cooldown_remaining_ledgers = locked_asset.unlock_ledger.saturating_sub(current_ledger);
         let can_release = !is_in_cooldown;
 
         ReleaseCooldownAccessor {

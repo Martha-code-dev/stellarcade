@@ -61,15 +61,26 @@ const AuditLog = {
   },
 
   /**
-   * Find audit log entries with optional actor/action filters.
+   * Find audit log entries with optional actor/action filters. An unscoped
+   * read is only possible when the caller has explicitly authorized it via
+   * `allowGlobal`; ordinary reads must always name an actor.
+   *
    * @param {Object} params
    * @param {string} [params.actor]
    * @param {string} [params.action]
    * @param {number} [params.limit=50]
+   * @param {boolean} [params.allowGlobal=false]
    */
-  async findAll({ actor, action, limit = 50 } = {}) {
+  async findAll({ actor, action, limit = 50, allowGlobal = false } = {}) {
+    if (!actor && !allowGlobal) {
+      const error = new Error('An actor is required to read audit logs.');
+      error.statusCode = 400;
+      error.code = 'AUDIT_ACTOR_REQUIRED';
+      throw error;
+    }
+
     try {
-      const query = db('audit_logs').orderBy('created_at', 'desc').limit(limit);
+      const query = db('audit_logs').orderBy('created_at', 'desc');
 
       if (actor) {
         query.where({ actor });
@@ -79,7 +90,7 @@ const AuditLog = {
         query.where({ action });
       }
 
-      return await query;
+      return await query.limit(limit);
     } catch (error) {
       logger.error('Error in AuditLog.findAll:', error);
       throw error;

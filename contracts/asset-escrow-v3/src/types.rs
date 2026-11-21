@@ -1,4 +1,4 @@
-use soroban_sdk::{Address, contracttype};
+use soroban_sdk::{contracttype, Address};
 
 /// Balance lock status for an escrow entry.
 #[contracttype]

@@ -1,6 +1,8 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
+import { profileStore } from "@/services/profile-service";
+
 const connect = vi.fn();
 vi.mock("next/navigation", () => ({
   useSearchParams: () => ({
@@ -46,6 +48,13 @@ describe("LinkPage — Telegram sync on sign", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     signMessage.mockResolvedValue("c2ln");
+    // useWalletStatus authenticates a connected wallet in production and
+    // stores a JWT. The mock above skips that, so seed the token explicitly:
+    // the update call now requires it (#1552).
+    profileStore.dispatch({
+      type: "AUTH_SET",
+      payload: { userId: "test", token: "test-jwt-token" },
+    });
   });
 
   it("syncs telegram fields even with no cached username in the store", async () => {

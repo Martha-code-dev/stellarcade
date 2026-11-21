@@ -12,7 +12,7 @@ fn test_init_and_already_initialized() {
     let client = ProfilePerksClient::new(&env, &contract_id);
     let admin = Address::generate(&env);
 
-    assert!(client.init(&admin).is_ok());
+    assert!(client.try_init(&admin).is_ok());
     let reinit = client.try_init(&admin);
     assert!(reinit.is_err());
 }

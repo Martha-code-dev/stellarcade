@@ -1,5 +1,6 @@
 const express = require('express');
-const { getQuests } = require('../controllers/quests.controller');
+const { getQuests, postDailyCheckIn } = require('../controllers/quests.controller');
+const auth = require('../middleware/auth.middleware');
 const { rateLimit } = require('../middleware/rate-limit.middleware');
 
 const router = express.Router();
@@ -60,9 +61,46 @@ const routeDocs = [
       },
     },
   },
+  {
+    method: 'post',
+    path: '/check-in',
+    operationId: 'checkInDailyQuest',
+    summary: 'Record a daily check-in for the authenticated owner',
+    tags: ['Quests'],
+    responses: {
+      200: {
+        description: 'Daily check-in recorded for the authenticated owner',
+      },
+      401: {
+        description: 'Authentication failed',
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/ErrorEnvelope' },
+          },
+        },
+      },
+      404: {
+        description: 'Authenticated user was not found',
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/ErrorEnvelope' },
+          },
+        },
+      },
+      500: {
+        description: 'Unexpected server error',
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/ErrorEnvelope' },
+          },
+        },
+      },
+    },
+  },
 ];
 
 router.get('/', rateLimit('games'), getQuests);
+router.post('/check-in', auth, rateLimit('auth'), postDailyCheckIn);
 
 module.exports = router;
 module.exports.routeDocs = routeDocs;

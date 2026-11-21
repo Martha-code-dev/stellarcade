@@ -15,7 +15,7 @@ const postChallenge = async (req, res, next) => {
       throw error;
     }
 
-    const challenge = authService.createChallenge(address);
+    const challenge = await authService.createChallenge(address);
     res.status(200).json({ challenge });
   } catch (error) {
     next(error);
@@ -37,12 +37,11 @@ const postLogin = async (req, res, next) => {
       throw error;
     }
 
-    authService.verifySignature(address, signature);
+    await authService.verifySignature(address, signature);
 
-    let user = await User.findByWallet(address);
-    if (!user) {
-      user = await User.create({ wallet_address: address, username: 'player', balance: 0 });
-    }
+    // First login reserves the wallet only. An invented shared username would
+    // collide with the canonical username reservation used by onboarding.
+    const user = await User.reserveWallet(address);
 
     const token = authService.issueToken(user);
 

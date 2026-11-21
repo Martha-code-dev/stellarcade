@@ -686,4 +686,32 @@ mod test {
         assert_eq!(tc.balance(&r3), 40);
         assert_eq!(tc.balance(&contract_id), 0);
     }
+
+    #[test]
+    fn test_dust_and_recipient_change_keep_all_funds_accounted() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let g = || Address::generate(&env);
+        let (admin, depositor, a, b, c) = (g(), g(), g(), g(), g());
+        let (token_id, sa, tc) = setup_token(&env, &admin);
+        sa.mint(&depositor, &4);
+        let client = RevenueSplitClient::new(&env, &env.register(RevenueSplit, ()));
+        client.init(&admin, &token_id);
+        let s = Symbol::new(&env, "dust");
+        let w = |r: &Address, weight_bps| RecipientWeight {
+            recipient: r.clone(),
+            weight_bps,
+        };
+        client.set_split_config(&s, &vec![&env, w(&a, 3333), w(&b, 6667)]);
+        client.deposit_revenue(&depositor, &s, &1); // tiny deposit: all dust
+        client.distribute(&s);
+        client.deposit_revenue(&depositor, &s, &2);
+        client.distribute(&s); // 3 pending -> a 0, b 2, dust 1 carried
+        client.set_split_config(&s, &vec![&env, w(&a, 5000), w(&c, 5000)]); // drop b
+        client.deposit_revenue(&depositor, &s, &1);
+        client.distribute(&s); // carried dust + 1 -> a 1, c 1
+        assert!(client.try_distribute(&s).is_err()); // retry: nothing pending
+        assert_eq!((tc.balance(&a), tc.balance(&b), tc.balance(&c)), (1, 2, 1));
+        assert_eq!(client.recipient_balance(&s, &b), 2); // b's record survives
+    }
 }

@@ -43,6 +43,7 @@ impl RankRewards {
     /// Changing `reward_per_player` *does not* retroactively re-cost
     /// existing assignments — the aggregate moves only when players are
     /// added or removed.
+    #[allow(clippy::too_many_arguments)]
     pub fn upsert_bracket(
         env: Env,
         admin: Address,
@@ -104,24 +105,27 @@ impl RankRewards {
             Some(prev) => {
                 // Migration: remove from the previous bracket's totals.
                 if let Some(mut old) = storage::get_bracket(&env, prev.bracket_id) {
-                    old.player_count =
-                        old.player_count.checked_sub(1).expect("player underflow");
+                    old.player_count = old.player_count.checked_sub(1).expect("player underflow");
                     old.total_reward_owed = old
                         .total_reward_owed
                         .checked_sub(old.reward_per_player)
                         .expect("reward underflow");
                     storage::set_bracket(&env, &old);
                 }
-                bracket.player_count =
-                    bracket.player_count.checked_add(1).expect("player overflow");
+                bracket.player_count = bracket
+                    .player_count
+                    .checked_add(1)
+                    .expect("player overflow");
                 bracket.total_reward_owed = bracket
                     .total_reward_owed
                     .checked_add(bracket.reward_per_player)
                     .expect("reward overflow");
             }
             None => {
-                bracket.player_count =
-                    bracket.player_count.checked_add(1).expect("player overflow");
+                bracket.player_count = bracket
+                    .player_count
+                    .checked_add(1)
+                    .expect("player overflow");
                 bracket.total_reward_owed = bracket
                     .total_reward_owed
                     .checked_add(bracket.reward_per_player)
@@ -258,7 +262,7 @@ fn require_admin(env: &Env, admin: &Address) {
         .instance()
         .get(&DataKey::Admin)
         .expect("Not initialized");
-    assert!(stored == *admin, "Unauthorized");
+    assert_eq!(stored, *admin, "Unauthorized");
 }
 
 #[cfg(test)]

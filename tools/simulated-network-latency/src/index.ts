@@ -17,6 +17,9 @@ program
   .option('--max-latency <ms>', 'Maximum injected latency in ms', '0')
   .option('--fault-rate <rate>', 'Fraction of requests (0-1) to fail outright', '0')
   .option('--fault-status <code>', 'HTTP status code for faulted requests', '503')
+  .option('--max-body-bytes <bytes>', 'Maximum request/response body size in bytes', '1048576')
+  .option('--max-log-entries <n>', 'Maximum in-memory request log entries', '100')
+  .option('--upstream-timeout-ms <ms>', 'Upstream request timeout in milliseconds', '10000')
   .action(async (options) => {
     const config: ProxyConfig = {
       targetRpcUrl: options.target,
@@ -25,6 +28,9 @@ program
       maxLatencyMs: parseInt(options.maxLatency, 10),
       faultRate: parseFloat(options.faultRate),
       faultStatusCode: parseInt(options.faultStatus, 10),
+      maxBodyBytes: parseInt(options.maxBodyBytes, 10),
+      maxLogEntries: parseInt(options.maxLogEntries, 10),
+      upstreamTimeoutMs: parseInt(options.upstreamTimeoutMs, 10),
     };
 
     const proxy = new LatencyProxy(config);

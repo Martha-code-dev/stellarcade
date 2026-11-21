@@ -233,3 +233,20 @@ fn reward_decay_no_completions_yet() {
     assert_eq!(decay.pending_completion_count, 0);
     assert_eq!(decay.paid_completion_count, 0);
 }
+
+#[test]
+fn admin_actions_require_admin_authorization() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, admin, user) = setup(&env);
+
+    env.mock_auths(&[]);
+    let result = client.try_upsert_quest(&admin, &1, &500u128, &false);
+    assert!(result.is_err());
+
+    let result = client.try_record_completion(&admin, &user, &1, &1_000);
+    assert!(result.is_err());
+
+    let result = client.try_mark_paid(&admin, &user, &1);
+    assert!(result.is_err());
+}

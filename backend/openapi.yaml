@@ -68,7 +68,7 @@
                     },
                   '400':
                     {
-                      'description': 'Missing address',
+                      'description': 'Missing or malformed address',
                       'content':
                         {
                           'application/json':
@@ -78,6 +78,15 @@
                   '500':
                     {
                       'description': 'Unexpected server error',
+                      'content':
+                        {
+                          'application/json':
+                            { 'schema': { '$ref': '#/components/schemas/ErrorEnvelope' } },
+                        },
+                    },
+                  '503':
+                    {
+                      'description': 'Rate-limit store unavailable (auth policy fails closed)',
                       'content':
                         {
                           'application/json':
@@ -163,7 +172,7 @@
                     },
                   '503':
                     {
-                      'description': 'Login is not configured on this deployment (JWT_SECRET unset)',
+                      'description': 'Login is not configured on this deployment (JWT_SECRET unset), or the rate-limit store is unavailable (auth policy fails closed)',
                       'content':
                         {
                           'application/json':
@@ -273,6 +282,13 @@
                     'description': 'Number of games to return per page',
                   },
                   {
+                    'name': 'player',
+                    'in': 'query',
+                    'required': false,
+                    'schema': { 'type': 'string' },
+                    'description': 'Filter recent games by player address (Stellar G... address).',
+                  },
+                  {
                     'name': 'gameType',
                     'in': 'query',
                     'required': false,
@@ -303,43 +319,40 @@
                 ],
             },
         },
-      '/api/games/play':
+      '/api/games/:contractId/:id':
         {
-          'post':
+          'get':
             {
-              'operationId': 'playSimpleGame',
-              'summary': 'Play a game for the authenticated user',
+              'operationId': 'getIndexedGame',
+              'summary': 'Fetch one indexed on-chain game by contract id and on-chain game id',
               'tags': ['Games'],
               'responses':
                 {
                   '200':
                     {
-                      'description': 'Game was processed successfully',
+                      'description': 'Indexed game returned successfully',
                       'content':
                         {
                           'application/json':
-                            { 'schema': { '$ref': '#/components/schemas/PlayGameResponse' } },
+                            { 'schema': { '$ref': '#/components/schemas/IndexedGameResponse' } },
                         },
                     },
-                  '401':
+                  '400':
                     {
-                      'description': 'Authentication failed',
+                      'description': 'Invalid contract id or game id',
                       'content':
                         {
                           'application/json':
-                            { 'schema': { '$ref': '#/components/schemas/AuthErrorResponse' } },
+                            { 'schema': { '$ref': '#/components/schemas/ErrorEnvelope' } },
                         },
                     },
-                  '409':
+                  '404':
                     {
-                      'description': 'Idempotency key conflict detected',
+                      'description': 'No game indexed for this contract id and game id',
                       'content':
                         {
                           'application/json':
-                            {
-                              'schema':
-                                { '$ref': '#/components/schemas/IdempotencyConflictResponse' },
-                            },
+                            { 'schema': { '$ref': '#/components/schemas/ErrorEnvelope' } },
                         },
                     },
                   '500':
@@ -352,17 +365,24 @@
                         },
                     },
                 },
-              'parameters': [{ '$ref': '#/components/parameters/IdempotencyKeyHeader' }],
-              'requestBody':
-                {
-                  'required': true,
-                  'content':
-                    {
-                      'application/json':
-                        { 'schema': { '$ref': '#/components/schemas/PlayGameRequest' } },
-                    },
-                },
-              'security': [{ 'bearerAuth': [] }],
+              'description': 'Reads the row the event indexer wrote for a single round. 404 GAME_NOT_FOUND means the round is not indexed yet (or the ids are wrong), which is distinct from the backend being unavailable.',
+              'parameters':
+                [
+                  {
+                    'name': 'contractId',
+                    'in': 'path',
+                    'required': true,
+                    'schema': { 'type': 'string' },
+                    'description': 'Coin-flip contract id (Stellar contract address, C...).',
+                  },
+                  {
+                    'name': 'id',
+                    'in': 'path',
+                    'required': true,
+                    'schema': { 'type': 'string' },
+                    'description': 'On-chain game id as a decimal u64 string.',
+                  },
+                ],
             },
         },
       '/api/users/profile':
@@ -411,6 +431,7 @@
                         },
                     },
                 },
+              'description': 'Public reads use an allowlist that excludes Telegram identifiers. An authenticated owner additionally receives linked-account detail.',
               'parameters':
                 [
                   {
@@ -428,7 +449,7 @@
           'get':
             {
               'operationId': 'listUserAuditLogs',
-              'summary': 'List audit log entries',
+              'summary': "List the authenticated actor's audit log entries",
               'tags': ['Users'],
               'responses':
                 {
@@ -484,6 +505,7 @@
                         },
                     },
                 },
+              'description': 'Results are scoped to the authenticated actor. Global reads require an explicit admin role policy.',
               'parameters':
                 [
                   {
@@ -542,6 +564,33 @@
                             { 'schema': { '$ref': '#/components/schemas/ErrorEnvelope' } },
                         },
                     },
+                  '401':
+                    {
+                      'description': 'Authentication failed',
+                      'content':
+                        {
+                          'application/json':
+                            { 'schema': { '$ref': '#/components/schemas/AuthErrorResponse' } },
+                        },
+                    },
+                  '403':
+                    {
+                      'description': 'Body wallet does not match the authenticated wallet',
+                      'content':
+                        {
+                          'application/json':
+                            { 'schema': { '$ref': '#/components/schemas/ErrorEnvelope' } },
+                        },
+                    },
+                  '409':
+                    {
+                      'description': 'Username is already reserved by another wallet',
+                      'content':
+                        {
+                          'application/json':
+                            { 'schema': { '$ref': '#/components/schemas/ErrorEnvelope' } },
+                        },
+                    },
                   '500':
                     {
                       'description': 'Unexpected server error',
@@ -591,9 +640,36 @@
                             { 'schema': { '$ref': '#/components/schemas/ErrorEnvelope' } },
                         },
                     },
+                  '401':
+                    {
+                      'description': 'Authentication failed',
+                      'content':
+                        {
+                          'application/json':
+                            { 'schema': { '$ref': '#/components/schemas/AuthErrorResponse' } },
+                        },
+                    },
+                  '403':
+                    {
+                      'description': 'Body wallet does not match the authenticated wallet',
+                      'content':
+                        {
+                          'application/json':
+                            { 'schema': { '$ref': '#/components/schemas/ErrorEnvelope' } },
+                        },
+                    },
                   '404':
                     {
                       'description': 'No existing profile for that wallet address — use /create first',
+                      'content':
+                        {
+                          'application/json':
+                            { 'schema': { '$ref': '#/components/schemas/ErrorEnvelope' } },
+                        },
+                    },
+                  '409':
+                    {
+                      'description': 'Username is already reserved by another wallet',
                       'content':
                         {
                           'application/json':
@@ -691,13 +767,13 @@
           'post':
             {
               'operationId': 'createDeposit',
-              'summary': 'Create a deposit request for the authenticated user',
+              'summary': 'Create a deposit request for the authenticated user (disabled — no verified on-chain flow yet)',
               'tags': ['Wallet'],
               'responses':
                 {
                   '200':
                     {
-                      'description': 'Deposit request accepted',
+                      'description': 'Deposit request accepted. Not reachable while the deposit flow is disabled.',
                       'content':
                         {
                           'application/json':
@@ -745,6 +821,15 @@
                             { 'schema': { '$ref': '#/components/schemas/ErrorEnvelope' } },
                         },
                     },
+                  '501':
+                    {
+                      'description': 'The deposit flow is disabled: no verified on-chain settlement flow is wired up yet, so the request is refused before anything is read from or written to the database. The error code is WALLET_FLOW_DISABLED.',
+                      'content':
+                        {
+                          'application/json':
+                            { 'schema': { '$ref': '#/components/schemas/ErrorEnvelope' } },
+                        },
+                    },
                 },
               'parameters': [{ '$ref': '#/components/parameters/IdempotencyKeyHeader' }],
               'requestBody':
@@ -764,13 +849,13 @@
           'post':
             {
               'operationId': 'createWithdrawal',
-              'summary': 'Create a withdrawal request for the authenticated user',
+              'summary': 'Create a withdrawal request for the authenticated user (disabled — no verified on-chain flow yet)',
               'tags': ['Wallet'],
               'responses':
                 {
                   '200':
                     {
-                      'description': 'Withdrawal request accepted',
+                      'description': 'Withdrawal request accepted. Not reachable while the withdrawal flow is disabled.',
                       'content':
                         {
                           'application/json':
@@ -818,6 +903,15 @@
                             { 'schema': { '$ref': '#/components/schemas/ErrorEnvelope' } },
                         },
                     },
+                  '501':
+                    {
+                      'description': 'The withdrawal flow is disabled: no verified on-chain settlement flow is wired up yet, so the request is refused before anything is read from or written to the database. The error code is WALLET_FLOW_DISABLED.',
+                      'content':
+                        {
+                          'application/json':
+                            { 'schema': { '$ref': '#/components/schemas/ErrorEnvelope' } },
+                        },
+                    },
                 },
               'parameters': [{ '$ref': '#/components/parameters/IdempotencyKeyHeader' }],
               'requestBody':
@@ -837,7 +931,7 @@
           'get':
             {
               'operationId': 'getLeaderboard',
-              'summary': 'Rank players by total payout, optionally scoped to one game type',
+              'summary': 'Rank players by net winnings (payout - bet_amount) from resolved on-chain games, optionally scoped to one game type',
               'tags': ['Leaderboard'],
               'responses':
                 {
@@ -854,12 +948,13 @@
                                   'items':
                                     {
                                       'type': 'object',
-                                      'required': ['rank', 'playerAddress', 'score'],
+                                      'required': ['rank', 'playerAddress', 'score', 'gamesPlayed'],
                                       'properties':
                                         {
                                           'rank': { 'type': 'integer' },
                                           'playerAddress': { 'type': 'string' },
                                           'score': { 'type': 'string' },
+                                          'gamesPlayed': { 'type': 'integer' },
                                         },
                                     },
                                 },
@@ -889,8 +984,8 @@
                     'name': 'limit',
                     'in': 'query',
                     'required': false,
-                    'schema': { 'type': 'integer', 'minimum': 1, 'default': 10 },
-                    'description': 'Maximum number of entries returned.',
+                    'schema': { 'type': 'integer', 'minimum': 1, 'maximum': 100, 'default': 10 },
+                    'description': 'Maximum number of entries returned (max 100).',
                   },
                 ],
             },
@@ -961,6 +1056,47 @@
                     'description': 'Stellar wallet address (G...) to fetch quest progress for.',
                   },
                 ],
+            },
+        },
+      '/api/quests/check-in':
+        {
+          'post':
+            {
+              'operationId': 'checkInDailyQuest',
+              'summary': 'Record a daily check-in for the authenticated owner',
+              'tags': ['Quests'],
+              'responses':
+                {
+                  '200': { 'description': 'Daily check-in recorded for the authenticated owner' },
+                  '401':
+                    {
+                      'description': 'Authentication failed',
+                      'content':
+                        {
+                          'application/json':
+                            { 'schema': { '$ref': '#/components/schemas/ErrorEnvelope' } },
+                        },
+                    },
+                  '404':
+                    {
+                      'description': 'Authenticated user was not found',
+                      'content':
+                        {
+                          'application/json':
+                            { 'schema': { '$ref': '#/components/schemas/ErrorEnvelope' } },
+                        },
+                    },
+                  '500':
+                    {
+                      'description': 'Unexpected server error',
+                      'content':
+                        {
+                          'application/json':
+                            { 'schema': { '$ref': '#/components/schemas/ErrorEnvelope' } },
+                        },
+                    },
+                },
+              'security': [{ 'bearerAuth': [] }],
             },
         },
       '/api/tournaments':
@@ -1143,9 +1279,12 @@
                 {
                   'address': { 'type': 'string' },
                   'username': { 'type': 'string' },
-                  'telegramHandle': { 'type': 'string' },
-                  'telegramUserId': { 'type': 'string' },
-                  'telegramLinked': { 'type': 'boolean' },
+                  'telegramHandle':
+                    { 'type': 'string', 'description': 'Owner-only linked-account detail.' },
+                  'telegramUserId':
+                    { 'type': 'string', 'description': 'Owner-only linked-account detail.' },
+                  'telegramLinked':
+                    { 'type': 'boolean', 'description': 'Owner-only linked-account detail.' },
                   'createdAt': { 'type': 'string', 'format': 'date-time' },
                   'updatedAt': { 'type': 'string', 'format': 'date-time' },
                 },
@@ -1205,23 +1344,48 @@
                   'totalPages': { 'type': 'integer' },
                 },
             },
-          'PlayGameRequest':
+          'IndexedGameResponse':
             {
               'type': 'object',
-              'required': ['gameType'],
+              'required': ['contract_id', 'chain_game_id', 'game_type', 'status', 'result'],
               'properties':
                 {
-                  'gameType': { 'type': 'string' },
-                  '_amount': { 'type': 'number' },
-                  '_choice': {},
+                  'id': { 'type': 'integer' },
+                  'user_id': { 'type': 'integer', 'nullable': true },
+                  'game_type': { 'type': 'string' },
+                  'bet_amount':
+                    {
+                      'type': 'string',
+                      'description': 'Wager in XLM units with 7 decimals (stroops / 10^7).',
+                    },
+                  'payout':
+                    {
+                      'type': 'string',
+                      'description': 'Payout in XLM units with 7 decimals; 0.0000000 while pending.',
+                    },
+                  'result': { 'type': 'string', 'enum': ['win', 'loss', 'pending'] },
+                  'status': { 'type': 'string', 'enum': ['pending', 'resolved'] },
+                  'contract_id': { 'type': 'string' },
+                  'chain_game_id':
+                    { 'type': 'string', 'description': 'On-chain u64 game id, decimal string.' },
+                  'player_address': { 'type': 'string' },
+                  'side': { 'type': 'string', 'enum': ['heads', 'tails'] },
+                  'ledger': { 'type': 'integer', 'nullable': true },
+                  'tx_hash':
+                    {
+                      'type': 'string',
+                      'nullable': true,
+                      'description': 'Bet-placing transaction hash.',
+                    },
+                  'resolve_tx_hash':
+                    {
+                      'type': 'string',
+                      'nullable': true,
+                      'description': 'Resolving transaction hash.',
+                    },
+                  'resolved_at': { 'type': 'string', 'format': 'date-time', 'nullable': true },
+                  'created_at': { 'type': 'string', 'format': 'date-time' },
                 },
-              'additionalProperties': true,
-            },
-          'PlayGameResponse':
-            {
-              'type': 'object',
-              'required': ['success'],
-              'properties': { 'success': { 'type': 'boolean' } },
             },
           'MonetaryAmountRequest':
             {

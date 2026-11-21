@@ -10,8 +10,8 @@ pub use types::{
     SellerAuctionSummary, SettlementOutcome,
 };
 
-const BUMP_AMOUNT: u32 = 518_400;
-const LIFETIME_THRESHOLD: u32 = BUMP_AMOUNT / 2;
+pub(crate) const BUMP_AMOUNT: u32 = 518_400;
+pub(crate) const LIFETIME_THRESHOLD: u32 = BUMP_AMOUNT / 2;
 
 #[contracttype]
 #[derive(Clone)]
@@ -56,13 +56,17 @@ impl ReserveAuction {
         admin.require_auth();
         env.storage().instance().set(&DataKey::Admin, &admin);
         env.storage().instance().set(&DataKey::GlobalPaused, &false);
-        env.storage().instance().set(&DataKey::NextAuctionId, &0_u64);
+        env.storage()
+            .instance()
+            .set(&DataKey::NextAuctionId, &0_u64);
         Ok(())
     }
 
     pub fn set_paused(env: Env, paused: bool) -> Result<(), Error> {
         Self::require_admin(&env)?;
-        env.storage().instance().set(&DataKey::GlobalPaused, &paused);
+        env.storage()
+            .instance()
+            .set(&DataKey::GlobalPaused, &paused);
         Ok(())
     }
 
@@ -81,7 +85,7 @@ impl ReserveAuction {
         if reserve_price <= 0 {
             return Err(Error::InvalidReservePrice);
         }
-        if asset_label.len() == 0 {
+        if asset_label.is_empty() {
             return Err(Error::InvalidAssetLabel);
         }
         if start_ledger >= end_ledger {
@@ -241,10 +245,10 @@ impl ReserveAuction {
             if let Some(auction) = storage::get_auction(&env, auction_id) {
                 if auction.seller == seller && !auction.settled {
                     let phase = Self::phase_for(&env, &auction);
-                    if phase == AuctionPhase::Pending || phase == AuctionPhase::Live {
-                        if auction.highest_bid > highest_open_bid {
-                            highest_open_bid = auction.highest_bid;
-                        }
+                    if (phase == AuctionPhase::Pending || phase == AuctionPhase::Live)
+                        && auction.highest_bid > highest_open_bid
+                    {
+                        highest_open_bid = auction.highest_bid;
                     }
                 }
             }

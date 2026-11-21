@@ -7,9 +7,31 @@
  * WalletSessionService is injected as a mock to avoid localStorage dependency.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useWalletStatus } from "./useWalletStatus";
+
+// ── External boundary ──────────────────────────────────────────────────────────
+//
+// `connect()` starts a best-effort backend login through `authenticateWallet`.
+// Left real, that call reached `localhost:3000` and printed ECONNREFUSED on
+// every run — the hook swallows the failure, so the suite still passed while
+// emitting the error. The boundary is mocked here, and any real fetch is turned
+// into a hard failure so a future regression surfaces as a test error instead
+// of a stray network attempt.
+const { authenticateWalletMock } = vi.hoisted(() => ({
+  authenticateWalletMock: vi.fn(),
+}));
+
+vi.mock("../services/profile-service", () => ({
+  authenticateWallet: authenticateWalletMock,
+}));
+
+const fetchGuard = vi.fn(() => {
+  throw new Error(
+    "Unexpected network request in wallet unit tests; mock the boundary instead.",
+  );
+});
 import {
   WalletSessionState,
   ProviderNotFoundError,
@@ -111,6 +133,14 @@ let mockService: MockWalletSessionService;
 
 beforeEach(() => {
   mockService = new MockWalletSessionService();
+  authenticateWalletMock.mockReset();
+  authenticateWalletMock.mockResolvedValue({ ok: true });
+  fetchGuard.mockClear();
+  vi.stubGlobal("fetch", fetchGuard);
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 // ── Initial state ──────────────────────────────────────────────────────────────
@@ -396,6 +426,68 @@ describe("connect action", () => {
         await result.current.connect();
       }),
     ).rejects.toBeInstanceOf(ProviderNotFoundError);
+  });
+
+  it("runs the best-effort backend login offline with the connected address", async () => {
+    const { result } = renderHook(() =>
+      useWalletStatus(mockService as any),
+    );
+
+    await act(async () => {
+      await result.current.connect();
+    });
+
+    // No adapter was supplied, so the default Freighter adapter is used and it
+    // can sign — the hook must kick off the backend session with that address.
+    expect(authenticateWalletMock).toHaveBeenCalledTimes(1);
+    expect(authenticateWalletMock.mock.calls[0][0]).toBe(MOCK_META.address);
+    // The boundary is mocked: nothing may reach the network.
+    expect(fetchGuard).not.toHaveBeenCalled();
+  });
+
+  it("skips the backend login when the adapter cannot sign messages", async () => {
+    const adapter = {
+      isAvailable: vi.fn().mockReturnValue(true),
+      connect: vi.fn().mockResolvedValue({
+        address: "GABC",
+        provider: MOCK_PROVIDER,
+        network: "TESTNET",
+      }),
+    };
+
+    const { result } = renderHook(() =>
+      useWalletStatus(mockService as any),
+    );
+
+    await act(async () => {
+      await result.current.connect(adapter as any);
+    });
+
+    expect(authenticateWalletMock).not.toHaveBeenCalled();
+    expect(fetchGuard).not.toHaveBeenCalled();
+  });
+
+  it("resolves connect even when the backend login fails", async () => {
+    authenticateWalletMock.mockRejectedValueOnce(new Error("backend offline"));
+
+    const { result } = renderHook(() =>
+      useWalletStatus(mockService as any),
+    );
+
+    await expect(
+      act(async () => {
+        await result.current.connect();
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(mockService.connect).toHaveBeenCalled();
+    expect(fetchGuard).not.toHaveBeenCalled();
+  });
+
+  it("fails loudly on an unexpected network request", () => {
+    expect(() => fetch("http://localhost:3000/api/games")).toThrow(
+      /Unexpected network request/,
+    );
   });
 });
 

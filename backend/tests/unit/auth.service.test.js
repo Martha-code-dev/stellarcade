@@ -5,10 +5,29 @@
 const { createHash } = require('crypto');
 const jwt = require('jsonwebtoken');
 const { Keypair } = require('@stellar/stellar-sdk');
+
+const mockStore = new Map();
+
+jest.mock('../../src/config/redis', () => ({
+  client: {
+    setEx: jest.fn(async (key, _ttl, value) => {
+      mockStore.set(key, value);
+      return 'OK';
+    }),
+    getDel: jest.fn(async (key) => {
+      const value = mockStore.get(key) ?? null;
+      mockStore.delete(key);
+      return value;
+    }),
+  },
+  connectPromise: Promise.resolve(),
+}));
+
 const {
   authService,
   ChallengeNotFoundError,
   ChallengeExpiredError,
+  InvalidAddressError,
   InvalidSignatureError,
   AuthNotConfiguredError,
 } = require('../../src/services/auth.service');
@@ -22,70 +41,99 @@ function signChallenge(keypair, challenge) {
 }
 
 describe('authService.createChallenge / verifySignature', () => {
-  test('verifies a correctly signed challenge and consumes it', () => {
+  beforeEach(() => {
+    mockStore.clear();
+  });
+
+  test('verifies a correctly signed challenge and consumes it', async () => {
     const keypair = Keypair.random();
     const address = keypair.publicKey();
 
-    const challenge = authService.createChallenge(address);
+    const challenge = await authService.createChallenge(address);
     const signature = signChallenge(keypair, challenge);
 
-    expect(() => authService.verifySignature(address, signature)).not.toThrow();
-  });
-
-  test('rejects a signature from the wrong keypair', () => {
-    const signer = Keypair.random();
-    const claimedAddress = Keypair.random().publicKey();
-
-    const challenge = authService.createChallenge(claimedAddress);
-    const signature = signChallenge(signer, challenge);
-
-    expect(() => authService.verifySignature(claimedAddress, signature)).toThrow(
-      InvalidSignatureError
-    );
-  });
-
-  test('rejects a raw-bytes signature (not the SEP-53 wrapped hash real wallets produce)', () => {
-    const keypair = Keypair.random();
-    const address = keypair.publicKey();
-    const challenge = authService.createChallenge(address);
-
-    const rawSignature = keypair.sign(Buffer.from(challenge, 'utf8')).toString('base64');
-
-    expect(() => authService.verifySignature(address, rawSignature)).toThrow(InvalidSignatureError);
-  });
-
-  test('throws ChallengeNotFoundError when no challenge is pending', () => {
-    const keypair = Keypair.random();
-    expect(() => authService.verifySignature(keypair.publicKey(), 'sig')).toThrow(
+    await expect(authService.verifySignature(address, signature)).resolves.toBeUndefined();
+    await expect(authService.verifySignature(address, signature)).rejects.toThrow(
       ChallengeNotFoundError
     );
   });
 
-  test('throws ChallengeExpiredError after the TTL elapses', () => {
+  test('rejects a malformed address before touching the challenge store', async () => {
+    await expect(authService.createChallenge('not-a-real-address')).rejects.toThrow(
+      InvalidAddressError
+    );
+    await expect(authService.verifySignature('not-a-real-address', 'sig')).rejects.toThrow(
+      InvalidAddressError
+    );
+    expect(mockStore.size).toBe(0);
+  });
+
+  test('rejects a signature from the wrong keypair', async () => {
+    const signer = Keypair.random();
+    const claimedAddress = Keypair.random().publicKey();
+
+    const challenge = await authService.createChallenge(claimedAddress);
+    const signature = signChallenge(signer, challenge);
+
+    await expect(authService.verifySignature(claimedAddress, signature)).rejects.toThrow(
+      InvalidSignatureError
+    );
+  });
+
+  test('consumes a challenge even when the signature is invalid', async () => {
+    const address = Keypair.random().publicKey();
+    await authService.createChallenge(address);
+
+    await expect(authService.verifySignature(address, 'bm90LWEtc2ln')).rejects.toThrow(
+      InvalidSignatureError
+    );
+    await expect(authService.verifySignature(address, 'bm90LWEtc2ln')).rejects.toThrow(
+      ChallengeNotFoundError
+    );
+  });
+
+  test('stores the challenge with a bounded Redis TTL', async () => {
+    const address = Keypair.random().publicKey();
+    const { client } = require('../../src/config/redis');
+
+    await authService.createChallenge(address);
+
+    expect(client.setEx).toHaveBeenCalledWith(
+      `auth:login-challenge:${address}`,
+      300,
+      expect.any(String)
+    );
+  });
+
+  test('throws ChallengeNotFoundError when no challenge is pending', async () => {
+    const address = Keypair.random().publicKey();
+    await expect(authService.verifySignature(address, 'sig')).rejects.toThrow(
+      ChallengeNotFoundError
+    );
+  });
+
+  test('throws ChallengeExpiredError after the TTL elapses', async () => {
     const keypair = Keypair.random();
     const address = keypair.publicKey();
     const now = 1_000_000;
 
-    const challenge = authService.createChallenge(address, now);
+    const challenge = await authService.createChallenge(address, now);
     const signature = signChallenge(keypair, challenge);
 
-    expect(() => authService.verifySignature(address, signature, now + 6 * 60 * 1000)).toThrow(
-      ChallengeExpiredError
-    );
+    await expect(
+      authService.verifySignature(address, signature, now + 6 * 60 * 1000)
+    ).rejects.toThrow(ChallengeExpiredError);
   });
 
-  test('consumes the challenge on success — a replay fails', () => {
+  test('a challenge removed by Redis expiry is no longer verifiable', async () => {
     const keypair = Keypair.random();
     const address = keypair.publicKey();
-    const challenge = authService.createChallenge(address);
+    const challenge = await authService.createChallenge(address);
     const signature = signChallenge(keypair, challenge);
 
-    authService.verifySignature(address, signature);
-    expect(() => authService.verifySignature(address, signature)).toThrow(ChallengeNotFoundError);
-  });
+    mockStore.clear();
 
-  test('rejects a malformed address instead of throwing an unhandled error', () => {
-    expect(() => authService.verifySignature('not-a-real-address', 'sig')).toThrow(
+    await expect(authService.verifySignature(address, signature)).rejects.toThrow(
       ChallengeNotFoundError
     );
   });

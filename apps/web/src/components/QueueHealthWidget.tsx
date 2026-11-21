@@ -5,12 +5,13 @@ import { StatusPill } from "./StatusPill";
 import "./QueueHealthWidget.css";
 
 export interface QueueMetrics {
-  playersInQueue: number;
-  averageWaitTime: number; // in seconds
-  estimatedWaitTime: number; // in seconds
-  activeMatches: number;
-  queueHealth: "healthy" | "degraded" | "critical" | "offline";
-  lastUpdated: string;
+  /** Null when no live queue telemetry is available; never coerced to 0. */
+  playersInQueue: number | null;
+  averageWaitTime: number | null; // in seconds
+  estimatedWaitTime: number | null; // in seconds
+  activeMatches: number | null;
+  queueHealth: "healthy" | "degraded" | "critical" | "offline" | "unknown";
+  lastUpdated: string | null;
 }
 
 export interface QueueHealthWidgetProps {
@@ -27,15 +28,16 @@ export interface QueueHealthWidgetProps {
 }
 
 const DEFAULT_METRICS: QueueMetrics = {
-  playersInQueue: 0,
-  averageWaitTime: 0,
-  estimatedWaitTime: 0,
-  activeMatches: 0,
-  queueHealth: "offline",
-  lastUpdated: new Date().toISOString(),
+  playersInQueue: null,
+  averageWaitTime: null,
+  estimatedWaitTime: null,
+  activeMatches: null,
+  queueHealth: "unknown",
+  lastUpdated: null,
 };
 
-const formatWaitTime = (seconds: number): string => {
+const formatWaitTime = (seconds: number | null): string => {
+  if (seconds === null) return "—";
   if (seconds < 60) return `${seconds}s`;
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
   return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
@@ -47,6 +49,7 @@ const getHealthTone = (health: QueueMetrics["queueHealth"]) => {
     case "degraded": return "warning";
     case "critical": return "error";
     case "offline": return "neutral";
+    case "unknown": return "neutral";
     default: return "neutral";
   }
 };
@@ -57,6 +60,7 @@ const getHealthLabel = (health: QueueMetrics["queueHealth"]) => {
     case "degraded": return "Degraded";
     case "critical": return "Critical";
     case "offline": return "Offline";
+    case "unknown": return "Unavailable";
     default: return "Unknown";
   }
 };
@@ -66,9 +70,7 @@ export const QueueHealthWidget: React.FC<QueueHealthWidgetProps> = ({
   queueName = "Game Queue",
   size = "default",
   showDetails = false,
-  onRefresh,
   loading = false,
-  error,
   className = "",
   testId = "queue-health-widget",
 }) => {
@@ -98,7 +100,9 @@ export const QueueHealthWidget: React.FC<QueueHealthWidgetProps> = ({
         <div className="queue-health-widget__metric-group">
           <div className="queue-health-widget__metric">
             <span className="queue-health-widget__metric-value">
-              {loading ? "—" : currentMetrics.playersInQueue}
+              {loading || currentMetrics.playersInQueue === null
+                ? "—"
+                : currentMetrics.playersInQueue}
             </span>
             <span className="queue-health-widget__metric-label">In Queue</span>
           </div>
@@ -113,7 +117,9 @@ export const QueueHealthWidget: React.FC<QueueHealthWidgetProps> = ({
           {(size === "detailed" || showDetails) && (
             <div className="queue-health-widget__metric">
               <span className="queue-health-widget__metric-value">
-                {loading ? "—" : currentMetrics.activeMatches}
+                {loading || currentMetrics.activeMatches === null
+                  ? "—"
+                  : currentMetrics.activeMatches}
               </span>
               <span className="queue-health-widget__metric-label">Active</span>
             </div>

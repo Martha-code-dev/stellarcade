@@ -9,19 +9,32 @@ const AuditLog = require('../models/AuditLog.model');
 const logger = require('../utils/logger');
 
 const REDACTED = '[REDACTED]';
-const SENSITIVE_KEYS = new Set([
+
+/**
+ * Sensitive metadata keys are matched after normalization: lowercase and with
+ * every non-alphanumeric character removed. That makes `Authorization`,
+ * `authorization`, `private_key`, `private-key` and `privateKey` all resolve
+ * to the same policy entry, so a casing or separator variant cannot bypass
+ * redaction. The original key is preserved in the stored metadata; only its
+ * value is replaced.
+ */
+const SENSITIVE_KEY_NAMES = new Set([
   'password',
   'secret',
   'signature',
   'authorization',
   'token',
-  'accessToken',
-  'refreshToken',
-  'privateKey',
+  'accesstoken',
+  'refreshtoken',
+  'privatekey',
   'seed',
   'mnemonic',
   'pin',
 ]);
+
+const normalizeSensitiveKey = (key) => key.replace(/[^a-z0-9]/gi, '').toLowerCase();
+
+const isSensitiveKey = (key) => SENSITIVE_KEY_NAMES.has(normalizeSensitiveKey(key));
 
 const normalizeValue = (value) => {
   if (Array.isArray(value)) {
@@ -47,7 +60,7 @@ const redactSensitive = (value) => {
 
   if (value && typeof value === 'object') {
     return Object.keys(value).reduce((acc, key) => {
-      if (SENSITIVE_KEYS.has(key)) {
+      if (isSensitiveKey(key)) {
         acc[key] = REDACTED;
       } else {
         acc[key] = redactSensitive(value[key]);
@@ -105,9 +118,9 @@ const log = async ({ actor, action, target, payload, outcome = 'success', metada
   }
 };
 
-const list = async ({ actor, action, limit = 50 } = {}) => {
+const list = async ({ actor, action, limit = 50, allowGlobal = false } = {}) => {
   try {
-    return await AuditLog.findAll({ actor, action, limit });
+    return await AuditLog.findAll({ actor, action, limit, allowGlobal });
   } catch (error) {
     logger.error(`[AuditService] Failed to read audit log: ${error.message}`);
     throw error;

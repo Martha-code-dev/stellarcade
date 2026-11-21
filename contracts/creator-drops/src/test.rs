@@ -196,3 +196,48 @@ fn claim_window_accessor_missing_returns_zeroed() {
     assert!(!window.in_claim_window);
     assert_eq!(window.secs_until_window_end, 0);
 }
+
+#[test]
+#[should_panic(expected = "Unauthorized")]
+fn unauthorized_admin_cannot_upsert_drop() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, _admin, creator) = setup(&env);
+    let attacker = Address::generate(&env);
+
+    client.upsert_drop(
+        &attacker,
+        &55,
+        &DropConfigInput {
+            creator,
+            starts_at: 100,
+            ends_at: 200,
+            total_supply: 50,
+            paused: false,
+        },
+    );
+}
+
+#[test]
+#[should_panic(expected = "Drop is not claimable")]
+fn claim_on_paused_drop_fails() {
+    let env = Env::default();
+    env.mock_all_auths();
+    env.ledger().with_mut(|l| l.timestamp = 150);
+    let (client, admin, creator) = setup(&env);
+    let claimer = Address::generate(&env);
+
+    client.upsert_drop(
+        &admin,
+        &56,
+        &DropConfigInput {
+            creator,
+            starts_at: 100,
+            ends_at: 200,
+            total_supply: 50,
+            paused: true,
+        },
+    );
+
+    client.claim(&claimer, &56, &1);
+}

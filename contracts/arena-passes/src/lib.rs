@@ -3,9 +3,9 @@
 use soroban_sdk::{contract, contractimpl, Address, Env, Vec};
 
 mod storage;
-mod types;
 #[cfg(test)]
 mod test;
+mod types;
 
 pub use types::{HolderUsageSnapshot, PassHolder, RenewalWindow};
 
@@ -73,7 +73,10 @@ impl ArenaPasses {
         for i in 0..holders.len() {
             let h = holders.get(i).unwrap();
             if h.holder_index == holder_index {
-                let seconds_until_expiry = if h.expires_at > now { h.expires_at - now } else { 0 };
+                // Saturating subtraction keeps the zero-state correct for an
+                // already-expired pass without a manual underflow guard that
+                // clippy -D warnings rejects (#1592).
+                let seconds_until_expiry = h.expires_at.saturating_sub(now);
                 let in_renewal_window =
                     h.expires_at > now && seconds_until_expiry <= RENEWAL_WINDOW_SECS;
                 return RenewalWindow {

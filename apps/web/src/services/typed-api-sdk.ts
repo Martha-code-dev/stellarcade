@@ -62,6 +62,13 @@ function makeClientError(params: {
   };
 }
 
+/**
+ * The bundled fallback catalog.
+ *
+ * It describes which games exist, not how many players are on them. No live
+ * player-count feed backs these entries, so `players` is `null` (unknown)
+ * rather than a fabricated number.
+ */
 export const ONCHAIN_GAMES_CATALOG: Game[] = [
   {
     id: "coinflip-duel",
@@ -71,7 +78,7 @@ export const ONCHAIN_GAMES_CATALOG: Game[] = [
     description:
       "Instant 50/50 provably fair on-chain duel. Double your stake on heads or tails.",
     contract: "coin-flip",
-    players: 142,
+    players: null,
     category: "PVP / Duel",
   },
   {
@@ -82,7 +89,7 @@ export const ONCHAIN_GAMES_CATALOG: Game[] = [
     description:
       "Multi-sided dice arena backed by cryptographic seed commitments and Soroban RNG.",
     contract: "random-generator",
-    players: 89,
+    players: null,
     category: "Table / RNG",
   },
   {
@@ -93,10 +100,65 @@ export const ONCHAIN_GAMES_CATALOG: Game[] = [
     description:
       "High-roller reserve pool with accumulated yields and on-chain payout splits.",
     contract: "prize-pool",
-    players: 37,
+    players: null,
     category: "Jackpot / Pool",
   },
 ];
+
+/**
+ * Telemetry for a single catalog entry.
+ *
+ * A game's player count is either a measured number (a real `0` included) or
+ * genuinely unknown. Unknown is `available: false` and must never be rendered
+ * as `0`.
+ */
+export type GameTelemetry = { available: true; value: number } | { available: false };
+
+/** Reads one game's player count without inventing one. */
+export function readGamePlayers(game: Game): GameTelemetry {
+  const raw = game.players;
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    return { available: true, value: raw };
+  }
+  return { available: false };
+}
+
+export interface GamePlayersSummary {
+  /** True when at least one entry reported a measured count. */
+  available: boolean;
+  /** Sum of measured counts. Only meaningful when `available` is true. */
+  total: number;
+  /** How many entries reported a measured count. */
+  measuredGames: number;
+  /** How many entries were inspected. */
+  totalGames: number;
+}
+
+/**
+ * Aggregates player counts across a catalog.
+ *
+ * A populated catalog with no telemetry reports `available: false` no matter
+ * how many games it lists, so catalog size alone never implies players. A
+ * single measured `0` is `available: true` with `total: 0`, distinct from
+ * unknown.
+ */
+export function summarizeGamePlayers(games: Game[]): GamePlayersSummary {
+  let total = 0;
+  let measuredGames = 0;
+  for (const game of games) {
+    const telemetry = readGamePlayers(game);
+    if (telemetry.available) {
+      total += telemetry.value;
+      measuredGames += 1;
+    }
+  }
+  return {
+    available: measuredGames > 0,
+    total,
+    measuredGames,
+    totalGames: games.length,
+  };
+}
 
 function makeUnauthorizedError(): ApiClientError {
   return makeClientError({
@@ -267,6 +329,7 @@ function mapRpcError(err: unknown, timedOut: boolean): ApiClientError {
   });
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- stub keeps the call-site signature for a future diagnostics hook
 function dispatchApiTrace(_data: unknown): void {
   // no-op stub for local diagnostics hook
 }
@@ -462,6 +525,7 @@ export class ApiClient {
 
   async deposit(
     input: WalletAmountRequest,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- part of the public client signature
     _opts?: ApiRequestOptions,
   ): Promise<ApiResult<DepositResponse>> {
     if (input.amount <= 0) {
@@ -475,6 +539,7 @@ export class ApiClient {
 
   async withdraw(
     input: WalletAmountRequest,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- part of the public client signature
     _opts?: ApiRequestOptions,
   ): Promise<ApiResult<WithdrawResponse>> {
     if (input.amount <= 0) {

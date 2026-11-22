@@ -117,12 +117,20 @@ const retryWithIdempotency = async (endpoint, body, maxRetries = 3) => {
 
 ### Response Behavior
 
-| Scenario                             | Server Response                                           |
-| ------------------------------------ | --------------------------------------------------------- |
-| First request with key               | Executes operation, caches response (2xx), returns result |
-| Retry with same key + same body      | Returns cached response with `200 OK`                     |
-| Retry with same key + different body | Returns `409 Conflict` with error message                 |
-| Request without key (mutation)       | Executes normally (no idempotency guarantee)              |
+| Scenario                                            | Server Response                                            |
+| --------------------------------------------------- | ---------------------------------------------------------- |
+| First request with key                              | Reserves the key, executes the operation, caches a 2xx result |
+| Retry with same key + same body                     | Returns cached response with its original status           |
+| Retry with same key + different body                | Returns `409 Conflict` with error message                  |
+| Concurrent retry while the first is still in flight | Returns `409 Idempotency In Progress` with `Retry-After: 1` |
+| Failed (non-2xx) request with key                   | Releases the reservation so the client can retry           |
+| Request without key (mutation)                      | Executes normally (no idempotency guarantee)               |
+
+The key is reserved atomically (`SET NX`) before the handler runs, so two
+overlapping requests with the same key and body cannot both execute the side
+effect. A reservation left behind by a crashed process is taken over after
+`IDEMPOTENCY_PENDING_TTL_SECONDS` (default 60), and finalization is guarded by
+an ownership token so an expired owner cannot overwrite a newer reservation.
 
 ### Example 409 Conflict Response
 
@@ -133,9 +141,19 @@ const retryWithIdempotency = async (endpoint, body, maxRetries = 3) => {
 }
 ```
 
+### Example 409 In-Progress Response
+
+```json
+{
+  "error": "Idempotency In Progress",
+  "message": "A request with this Idempotency-Key is still in progress. Retry once it completes."
+}
+```
+
 ### Caching Details
 
 - **Cache duration**: 24 hours from first successful response
+- **Pending duration**: `IDEMPOTENCY_PENDING_TTL_SECONDS` (default 60 seconds)
 - **Cache key**: `idempotency:{userId}:{clientKey}` (scoped to user)
 - **Cached data**: Request body hash, status code, response body
 - **Only 2xx responses** are cached
@@ -149,7 +167,9 @@ The frontend provides a built-in service for managing idempotency in transaction
 1. **Generate keys client-side** using a reliable UUID generator
 2. **Store keys temporarily** during request lifecycle for retry scenarios
 3. **Use one key per logical operation** - don't reuse across different operations
-4. **Handle 409 errors** gracefully - they indicate a programming error (key reuse)
+4. **Handle 409 errors gracefully** - `Idempotency Conflict` means the key was
+   reused with a different body; `Idempotency In Progress` is retryable after
+   the `Retry-After` delay
 5. **Don't use idempotency for read operations** - GET requests skip idempotency checks
 
 ## Endpoints
@@ -186,6 +206,10 @@ Example response:
 
 - **GET** `/api/users/profile` - Get the current user's profile.
 - **POST** `/api/users/create` - Create a new user account linked to a Stellar address.
+- **POST** `/api/users/update` - Update a profile's username or linked-account fields.
+
+First login reserves the wallet only, so no shared default username is assigned. Usernames are reserved case-insensitively while display spelling is preserved. A name already held by another wallet returns HTTP 409 with code `USERNAME_TAKEN`, including case-only differences.
+
 - **GET** `/api/users/balance` - Get the user's on-platform balance.
 - **GET** `/api/users/audit-logs` - Retrieve audit logs with optional filtering.
   - Query: `actor` (optional exact actor id), `action` (optional exact action), `limit` (optional positive integer, default `50`).

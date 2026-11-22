@@ -3,9 +3,9 @@
 use soroban_sdk::{contract, contractimpl, Address, Env, Vec};
 
 mod storage;
-mod types;
 #[cfg(test)]
 mod test;
+mod types;
 
 pub use types::{ClaimReadiness, MemberPayout, TeamPayoutCoverage};
 
@@ -74,7 +74,7 @@ impl SquadRewards {
         let members = storage::get_members(&env);
         let pool = storage::get_pool(&env);
         ClaimReadiness {
-            is_ready: members.len() > 0 && pool > 0,
+            is_ready: !members.is_empty() && pool > 0,
             members_registered: members.len(),
             pool_funded: pool > 0,
             total_pool: pool,

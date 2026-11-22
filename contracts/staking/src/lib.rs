@@ -730,6 +730,28 @@ mod test {
     }
 
     #[test]
+    fn test_withdrawal_never_consumes_reward_liabilities() {
+        let s = setup();
+        let staking = token::Client::new(&s.env, &s.staking_token_addr);
+        s.client.set_reward_rate(&s.admin, &10);
+        s.staking_token.mint(&s.user1, &1000);
+        s.staking_token.mint(&s.user2, &3000);
+        s.client.stake(&s.user1, &1000);
+        s.client.stake(&s.user2, &3000);
+        let t = s.env.ledger().timestamp();
+        s.env.ledger().set_timestamp(t + 10);
+        s.client.set_reward_rate(&s.admin, &0); // rate change stops accrual
+        s.env.ledger().set_timestamp(t + 20);
+        assert!(s.client.try_claim_rewards(&s.user1).is_err()); // zero reward liquidity
+        s.client.unstake(&s.user1, &1000); // principal still withdrawable
+        assert_eq!(staking.balance(&s.user1), 1000);
+        s.reward_token.mint(&s.client.address, &100);
+        assert_eq!(s.client.claim_rewards(&s.user1), 25);
+        assert_eq!(s.client.claim_rewards(&s.user2), 75);
+        assert_eq!(staking.balance(&s.client.address), 3000);
+    }
+
+    #[test]
     #[should_panic(expected = "HostError: Error(Contract, #4)")]
     fn test_unstake_excessive_amount() {
         let s = setup();

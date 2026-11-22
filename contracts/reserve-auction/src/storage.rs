@@ -6,11 +6,16 @@ use crate::{
 };
 
 pub fn get_next_auction_id(env: &Env) -> u64 {
-    env.storage().instance().get(&DataKey::NextAuctionId).unwrap_or(0)
+    env.storage()
+        .instance()
+        .get(&DataKey::NextAuctionId)
+        .unwrap_or(0)
 }
 
 pub fn set_next_auction_id(env: &Env, next_auction_id: u64) {
-    env.storage().instance().set(&DataKey::NextAuctionId, &next_auction_id);
+    env.storage()
+        .instance()
+        .set(&DataKey::NextAuctionId, &next_auction_id);
 }
 
 pub fn get_auction(env: &Env, auction_id: u64) -> Option<ReserveAuctionLot> {
@@ -61,5 +66,7 @@ pub fn get_bid_delay_blocks(env: &Env) -> Option<u32> {
 }
 
 pub fn set_bid_delay_blocks(env: &Env, blocks: u32) {
-    env.storage().instance().set(&DataKey::BidDelayBlocks, &blocks);
+    env.storage()
+        .instance()
+        .set(&DataKey::BidDelayBlocks, &blocks);
 }

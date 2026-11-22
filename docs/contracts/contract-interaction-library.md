@@ -169,34 +169,3 @@ pub fn read_balance_account_summary(env: Env, address_registry: Address, user: A
 
 `Result<AccountSummary, CoreReadError>`
 
-### `resolve`
-```rust
-pub fn resolve(env: Env, name: String) -> Result<Address, MockRegistryError>
-```
-
-#### Parameters
-
-| Name | Type |
-|------|------|
-| `env` | `Env` |
-| `name` | `String` |
-
-#### Return Type
-
-`Result<Address, MockRegistryError>`
-
-### `get_config_snapshot`
-```rust
-pub fn get_config_snapshot(env: Env) -> Result<PrizePoolConfigSnapshot, PrizePoolReadError>
-```
-
-#### Parameters
-
-| Name | Type |
-|------|------|
-| `env` | `Env` |
-
-#### Return Type
-
-`Result<PrizePoolConfigSnapshot, PrizePoolReadError>`
-

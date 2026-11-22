@@ -28,8 +28,13 @@ jobs:
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: 1.91.0
+
+      - name: Print Rust toolchain versions
+        run: |
+          rustc -Vv
+          cargo -V
+          rustup show active-toolchain
+        working-directory: ./contracts
 
       - name: Run excluded crates report
         env:

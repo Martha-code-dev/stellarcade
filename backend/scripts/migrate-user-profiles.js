@@ -47,14 +47,14 @@ function readProfiles(sourceFile = DEFAULT_SOURCE) {
   } catch (error) {
     throw new ProfileMigrationError(
       `Profile file ${sourceFile} is not valid JSON: ${error.message}`,
-      'CORRUPT_PROFILE_FILE',
+      'CORRUPT_PROFILE_FILE'
     );
   }
 
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
     throw new ProfileMigrationError(
       `Profile file ${sourceFile} must contain an object keyed by wallet address.`,
-      'CORRUPT_PROFILE_FILE',
+      'CORRUPT_PROFILE_FILE'
     );
   }
   return parsed;

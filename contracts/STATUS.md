@@ -29,12 +29,12 @@ Generated from `contracts/Cargo.toml` and `#[test]` attributes in each crate's
 result whenever membership or test attributes change;
 `python3 scripts/contract_inventory.py --check` fails when this block is stale.
 
-- Workspace members: **113**
-- Effectively excluded crates: **41** (a crate listed in both
+- Workspace members: **142**
+- Effectively excluded crates: **12** (a crate listed in both
   `members` and `exclude` is a member, not an exclusion)
 - Crate directories containing a `Cargo.toml`: **154**
 
-**Excluded crates** (41): `higher-lower`, `challenge-ladder`, `merch-redemption`, `profile-perks`, `achievements`, `comprehensive-test-suite`, `contract-interaction-library`, `contract-upgrade-timelock`, `creator-drops`, `creator-vaults`, `cross-chain-bridge`, `daily-challenges`, `daily-reward-emission`, `escrow-ledger`, `escrow-vault`, `fanout-distributor`, `governance-token`, `guild-progress`, `ladder-checkpoints`, `ladder-seasons`, `loot-crate`, `map-voting`, `mission-ledger`, `prize-router-v2`, `quest-ledger-v2`, `queue-rewards`, `raffle-engine`, `rank-rewards`, `referral-quests`, `reserve-auction`, `reward-bridges`, `reward-unlocker`, `round-vouchers`, `season-rewards-vault`, `squad-match`, `squad-rewards`, `squad-roster`, `trivia-game`, `upgrade-mechanism`, `wallet-claims-v2`, `wallet-reserves`.
+**Excluded crates** (12): `higher-lower`, `merch-redemption`, `daily-reward-emission`, `escrow-ledger`, `escrow-vault`, `fanout-distributor`, `guild-progress`, `ladder-checkpoints`, `ladder-seasons`, `loot-crate`, `map-voting`, `mission-ledger`.
 
 #### Test attributes by crate
 
@@ -42,7 +42,7 @@ result whenever membership or test attributes change;
 | --- | --- | ---: |
 | `access-control` | member | 11 |
 | `achievement-badge` | member | 24 |
-| `achievements` | excluded | 7 |
+| `achievements` | member | 9 |
 | `affiliate-ledger` | member | 6 |
 | `ai-generated-game` | member | 5 |
 | `anti-cheat-bounties` | member | 19 |
@@ -53,40 +53,40 @@ result whenever membership or test attributes change;
 | `attendance-pass` | member | 12 |
 | `badge-minter` | member | 14 |
 | `balance-management` | member | 10 |
-| `blind-auction` | member | 3 |
+| `blind-auction` | member | 6 |
 | `bonus-rotator` | member | 6 |
 | `bonus-vault` | member | 6 |
 | `bounty-escrow` | member | 8 |
 | `campaign-claims` | member | 5 |
-| `challenge-ladder` | excluded | 4 |
+| `challenge-ladder` | member | 6 |
 | `clan-seasons` | member | 11 |
 | `coin-flip` | member | 44 |
 | `color-prediction` | member | 28 |
 | `combo-rewards` | member | 6 |
-| `comprehensive-test-suite` | excluded | 7 |
+| `comprehensive-test-suite` | member | 8 |
 | `contract-address-registry` | member | 26 |
 | `contract-circuit-breaker` | member | 3 |
 | `contract-doc-generator` | member | 14 |
 | `contract-health-registry` | member | 8 |
-| `contract-interaction-library` | excluded | 15 |
+| `contract-interaction-library` | member | 15 |
 | `contract-metadata-registry` | member | 20 |
 | `contract-monitoring` | member | 9 |
 | `contract-role-registry` | member | 21 |
-| `contract-upgrade-timelock` | excluded | 9 |
-| `creator-drops` | excluded | 7 |
+| `contract-upgrade-timelock` | member | 10 |
+| `creator-drops` | member | 9 |
 | `creator-escrow` | member | 5 |
 | `creator-royalties` | member | 11 |
-| `creator-vaults` | excluded | 11 |
-| `cross-chain-bridge` | excluded | 10 |
+| `creator-vaults` | member | 12 |
+| `cross-chain-bridge` | member | 13 |
 | `cross-contract-call-guard` | member | 5 |
 | `cross-contract-handler` | member | 26 |
-| `daily-challenges` | excluded | 10 |
+| `daily-challenges` | member | 15 |
 | `daily-reward-emission` | excluded | 3 |
 | `daily-trivia` | member | 9 |
 | `deployment-scripts` | member | 3 |
-| `dice-roll` | member | 34 |
+| `dice-roll` | member | 41 |
 | `duel-engine` | member | 4 |
-| `dutch-auction` | member | 11 |
+| `dutch-auction` | member | 15 |
 | `dynamic-fee-policy` | member | 9 |
 | `emergency-pause` | member | 14 |
 | `epoch-scheduler` | member | 15 |
@@ -96,11 +96,11 @@ result whenever membership or test attributes change;
 | `exploit-prevention` | member | 36 |
 | `fanout-distributor` | excluded | 9 |
 | `fee-allocator` | member | 6 |
-| `fee-management` | member | 25 |
+| `fee-management` | member | 26 |
 | `fee-shield` | member | 4 |
 | `gas-optimization-analysis` | member | 2 |
 | `governance` | member | 29 |
-| `governance-token` | excluded | 12 |
+| `governance-token` | member | 13 |
 | `grant-ledger` | member | 9 |
 | `guild-progress` | excluded | 17 |
 | `guild-season` | member | 6 |
@@ -133,32 +133,32 @@ result whenever membership or test attributes change;
 | `prediction-market` | member | 3 |
 | `price-prediction` | member | 37 |
 | `prize-ledger-v2` | member | 5 |
-| `prize-pool` | member | 34 |
-| `prize-router-v2` | excluded | 7 |
+| `prize-pool` | member | 35 |
+| `prize-router-v2` | member | 7 |
 | `prize-streamer` | member | 8 |
-| `profile-perks` | excluded | 3 |
-| `quest-ledger-v2` | excluded | 13 |
+| `profile-perks` | member | 4 |
+| `quest-ledger-v2` | member | 10 |
 | `quest-redeemer` | member | 10 |
-| `queue-rewards` | excluded | 5 |
-| `raffle-engine` | excluded | 2 |
+| `queue-rewards` | member | 5 |
+| `raffle-engine` | member | 3 |
 | `random-generator` | member | 41 |
-| `rank-rewards` | excluded | 4 |
-| `referral-quests` | excluded | 12 |
+| `rank-rewards` | member | 5 |
+| `referral-quests` | member | 13 |
 | `referral-rewards` | member | 2 |
 | `referral-system` | member | 27 |
-| `reserve-auction` | excluded | 5 |
+| `reserve-auction` | member | 6 |
 | `reserve-manager` | member | 9 |
-| `revenue-split` | member | 7 |
-| `reward-bridges` | excluded | 4 |
+| `revenue-split` | member | 8 |
+| `reward-bridges` | member | 4 |
 | `reward-distribution` | member | 21 |
 | `reward-router` | member | 6 |
 | `reward-stream` | member | 8 |
-| `reward-unlocker` | excluded | 13 |
-| `reward-vesting` | member | 19 |
+| `reward-unlocker` | member | 13 |
+| `reward-vesting` | member | 20 |
 | `rock-paper-scissors` | member | 14 |
 | `round-finalizer` | member | 6 |
-| `round-vouchers` | excluded | 2 |
-| `season-rewards-vault` | excluded | 12 |
+| `round-vouchers` | member | 3 |
+| `season-rewards-vault` | member | 12 |
 | `session-nonce-manager` | member | 14 |
 | `settlement-queue` | member | 17 |
 | `shared` | member | 0 |
@@ -166,11 +166,11 @@ result whenever membership or test attributes change;
 | `sponsor-lockbox` | member | 2 |
 | `sponsor-pool` | member | 10 |
 | `sponsorship-ledger` | member | 11 |
-| `squad-match` | excluded | 5 |
-| `squad-rewards` | excluded | 3 |
-| `squad-roster` | excluded | 5 |
-| `staking` | member | 10 |
-| `staking-rewards` | member | 6 |
+| `squad-match` | member | 6 |
+| `squad-rewards` | member | 3 |
+| `squad-roster` | member | 5 |
+| `staking` | member | 11 |
+| `staking-rewards` | member | 7 |
 | `streak-bonus` | member | 21 |
 | `streak-ladder` | member | 8 |
 | `team-prizes` | member | 9 |
@@ -183,16 +183,16 @@ result whenever membership or test attributes change;
 | `treasury` | member | 14 |
 | `treasury-allocation` | member | 14 |
 | `treasury-safeguard` | member | 9 |
-| `trivia-game` | excluded | 3 |
-| `upgrade-mechanism` | excluded | 8 |
+| `trivia-game` | member | 3 |
+| `upgrade-mechanism` | member | 8 |
 | `vault-claims` | member | 7 |
 | `vault-routing` | member | 2 |
 | `vip-subscription` | member | 24 |
 | `vote-escrow` | member | 3 |
 | `voucher-escrow` | member | 4 |
 | `voucher-minter` | member | 9 |
-| `wallet-claims-v2` | excluded | 2 |
-| `wallet-reserves` | excluded | 16 |
+| `wallet-claims-v2` | member | 3 |
+| `wallet-reserves` | member | 10 |
 | `wordle-clone` | member | 22 |
 
 > **A test count is not a security sign-off.** These numbers count `#[test]`

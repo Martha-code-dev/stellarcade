@@ -1,5 +1,5 @@
+use crate::types::{CooldownGapInfo, DataKey, QueueStatus, QueuedReward, UnlockQueueSummary};
 use soroban_sdk::{Address, Env, Vec};
-use crate::types::{CooldownGapInfo, DataKey, QueuedReward, QueueStatus, UnlockQueueSummary};
 
 /// Retrieve a queued reward by recipient and queue_id.
 /// Returns None if not found.
@@ -49,14 +49,11 @@ pub fn set_recipient_total_queued(env: &Env, recipient: &Address, total: i128) {
 
 /// Compute unlock queue summary for a recipient.
 /// Handles empty queue and missing entries gracefully.
-pub fn compute_unlock_queue_summary(
-    env: &Env,
-    recipient: &Address,
-) -> UnlockQueueSummary {
+pub fn compute_unlock_queue_summary(env: &Env, recipient: &Address) -> UnlockQueueSummary {
     let queue_ids = get_recipient_queue_ids(env, recipient);
 
     if queue_ids.is_empty() {
-        let current_ledger = env.ledger().sequence() as u32;
+        let current_ledger = env.ledger().sequence();
         return UnlockQueueSummary {
             total_queued_amount: 0,
             queue_size: 0,
@@ -66,7 +63,7 @@ pub fn compute_unlock_queue_summary(
         };
     }
 
-    let current_ledger = env.ledger().sequence() as u32;
+    let current_ledger = env.ledger().sequence();
     let mut total_queued_amount: i128 = 0;
     let mut in_cooldown_count: u32 = 0;
     let mut ready_to_claim_count: u32 = 0;
@@ -74,11 +71,13 @@ pub fn compute_unlock_queue_summary(
 
     for queue_id in queue_ids.iter() {
         if let Some(queued_reward) = get_queued_reward(env, recipient, queue_id) {
-            total_queued_amount = total_queued_amount.checked_add(queued_reward.amount)
+            total_queued_amount = total_queued_amount
+                .checked_add(queued_reward.amount)
                 .unwrap_or(total_queued_amount);
 
-            let unlock_ledger = queued_reward.queued_ledger.checked_add(queued_reward.cooldown_ledgers)
-                .unwrap_or(u32::MAX);
+            let unlock_ledger = queued_reward
+                .queued_ledger
+                .saturating_add(queued_reward.cooldown_ledgers);
 
             if unlock_ledger > current_ledger {
                 in_cooldown_count += 1;
@@ -106,17 +105,13 @@ pub fn compute_unlock_queue_summary(
 
 /// Check cooldown gap for a specific queue entry.
 /// Handles missing entry gracefully.
-pub fn get_cooldown_gap_info(
-    env: &Env,
-    recipient: &Address,
-    queue_id: u32,
-) -> CooldownGapInfo {
-    let current_ledger = env.ledger().sequence() as u32;
+pub fn get_cooldown_gap_info(env: &Env, recipient: &Address, queue_id: u32) -> CooldownGapInfo {
+    let current_ledger = env.ledger().sequence();
 
     if let Some(queued_reward) = get_queued_reward(env, recipient, queue_id) {
-        let unlock_eligible_ledger = queued_reward.queued_ledger
-            .checked_add(queued_reward.cooldown_ledgers)
-            .unwrap_or(u32::MAX);
+        let unlock_eligible_ledger = queued_reward
+            .queued_ledger
+            .saturating_add(queued_reward.cooldown_ledgers);
 
         let (status, ledgers_remaining) = if unlock_eligible_ledger > current_ledger {
             (

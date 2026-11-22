@@ -68,6 +68,18 @@ describe('GET /api/games', () => {
     expect(ids).toContain('rock-paper-scissors');
     expect(ids).toContain('minesweeper-escrow');
   });
+
+  test('reports no fabricated player counts when there is no telemetry source', async () => {
+    const res = await request(app).get('/api/games');
+
+    expect(res.status).toBe(200);
+    expect(res.body.games.length).toBeGreaterThan(0);
+    for (const game of res.body.games) {
+      // Unknown telemetry is unavailable, not a plausible-looking number.
+      // A measured count would be a number here; a measured zero would be 0.
+      expect(game.players).toBeNull();
+    }
+  });
 });
 
 describe('POST /api/games/play', () => {

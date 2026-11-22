@@ -82,7 +82,7 @@ const makeSoroban = ({ queueLen = 50, pages = [] } = {}) => ({
   getEvents: jest.fn(async () => pages.shift() || { events: [], cursor: null }),
 });
 
-const makeOracle = (soroban) =>
+const makeOracle = (soroban, options = {}) =>
   createOracle({
     db,
     soroban,
@@ -91,6 +91,7 @@ const makeOracle = (soroban) =>
     coinFlipContractId: COIN_FLIP_ID,
     diceRollContractId: DICE_ROLL_ID,
     minQueue: 20,
+    ...options,
   });
 
 beforeAll(async () => {
@@ -101,6 +102,7 @@ beforeEach(async () => {
   jest.clearAllMocks();
   await db('oracle_seeds').del();
   await db('worker_cursors').del();
+  await db('worker_leases').del();
 });
 
 afterAll(async () => {
@@ -358,6 +360,99 @@ describe('oracle worker — queue top-up', () => {
     await expect(makeOracle(soroban).topUpQueue()).resolves.toBe(0);
     expect(soroban.invoke).not.toHaveBeenCalled();
     expect(await db('oracle_seeds').count('* as n').first()).toMatchObject({ n: 0 });
+  });
+});
+
+describe('oracle worker — execution lease (#1578)', () => {
+  test('only the first instance runs a cycle while its lease is live', async () => {
+    const sorobanA = makeSoroban({ queueLen: 50 });
+    const sorobanB = makeSoroban({ queueLen: 50 });
+    const a = makeOracle(sorobanA, { leaseOwner: 'worker-a' });
+    const b = makeOracle(sorobanB, { leaseOwner: 'worker-b' });
+
+    await expect(a.runCycle()).resolves.toBe(true);
+    await expect(b.runCycle()).resolves.toBe(false);
+
+    // The instance that lost the lease touched neither the queue nor the events.
+    expect(sorobanB.simulate).not.toHaveBeenCalled();
+    expect(sorobanB.getEvents).not.toHaveBeenCalled();
+
+    const lease = await db('worker_leases').where({ name: 'oracle' }).first();
+    expect(lease.owner).toBe('worker-a');
+  });
+
+  test('an instance takes over once the previous lease expires', async () => {
+    const a = makeOracle(makeSoroban({ queueLen: 50 }), { leaseOwner: 'worker-a' });
+    await expect(a.runCycle()).resolves.toBe(true);
+
+    // Simulate the first instance crashing: its lease is now in the past.
+    await db('worker_leases')
+      .where({ name: 'oracle' })
+      .update({ expires_at: Date.now() - 1000 });
+
+    const sorobanB = makeSoroban({ queueLen: 50 });
+    const b = makeOracle(sorobanB, { leaseOwner: 'worker-b' });
+    await expect(b.runCycle()).resolves.toBe(true);
+
+    const lease = await db('worker_leases').where({ name: 'oracle' }).first();
+    expect(lease.owner).toBe('worker-b');
+  });
+
+  test('the owner renews its own lease every cycle', async () => {
+    const a = makeOracle(makeSoroban({ queueLen: 50 }), {
+      leaseOwner: 'worker-a',
+      leaseTtlMs: 60000,
+    });
+    await a.runCycle();
+
+    // Push the stored expiry close to now; a renewal must move it out again.
+    const near = Date.now() + 1000;
+    await db('worker_leases').where({ name: 'oracle' }).update({ expires_at: near });
+
+    await expect(a.runCycle()).resolves.toBe(true);
+    const lease = await db('worker_leases').where({ name: 'oracle' }).first();
+    expect(lease.owner).toBe('worker-a');
+    expect(Number(lease.expires_at)).toBeGreaterThan(near);
+  });
+
+  test('two instances racing to start elect exactly one owner', async () => {
+    const a = makeOracle(makeSoroban({ queueLen: 50 }), { leaseOwner: 'worker-a' });
+    const b = makeOracle(makeSoroban({ queueLen: 50 }), { leaseOwner: 'worker-b' });
+
+    const results = await Promise.all([a.acquireLease(), b.acquireLease()]);
+    expect(results.filter(Boolean)).toHaveLength(1);
+
+    const lease = await db('worker_leases').where({ name: 'oracle' }).first();
+    expect(['worker-a', 'worker-b']).toContain(lease.owner);
+  });
+
+  test('two instances sharing a database never bind or reveal a seed twice', async () => {
+    const { commitment } = await storeSeed();
+    const event = randomRequestedEvent({
+      id: 'ev-1',
+      requestId: 88,
+      caller: COIN_FLIP_ID,
+      commitment,
+    });
+    const sorobanA = makeSoroban({ queueLen: 50, pages: [{ events: [event], cursor: 'ev-1' }] });
+    const sorobanB = makeSoroban({ queueLen: 50, pages: [{ events: [event], cursor: 'ev-1' }] });
+    const a = makeOracle(sorobanA, { leaseOwner: 'worker-a' });
+    const b = makeOracle(sorobanB, { leaseOwner: 'worker-b' });
+
+    await a.runCycle();
+    await b.runCycle();
+
+    // Only the lease holder fulfilled the request and resolved the game.
+    expect(invokeCalls(sorobanA, 'fulfill_random')).toHaveLength(1);
+    expect(invokeCalls(sorobanB, 'fulfill_random')).toHaveLength(0);
+    expect(invokeCalls(sorobanA, 'resolve_bet')).toHaveLength(1);
+    expect(invokeCalls(sorobanB, 'resolve_bet')).toHaveLength(0);
+
+    const row = await db('oracle_seeds')
+      .where({ commitment: commitment.toString('hex') })
+      .first();
+    expect(row.status).toBe('revealed');
+    expect(String(row.request_id)).toBe('88');
   });
 });
 

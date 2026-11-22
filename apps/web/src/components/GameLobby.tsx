@@ -6,7 +6,6 @@ import NetworkGuardBanner from "./NetworkGuardBanner";
 import WalletStatusCard from "./WalletStatusCard";
 import PrizePoolStateCard from "./PrizePoolStateCard";
 import { DataTable, type DataTableColumn } from "./DataTable";
-import { SkeletonPreset } from "./LoadingSkeletonSet";
 import TransactionDetailDrawer from "./TransactionDetailDrawer";
 import SectionHeader from "./SectionHeader";
 import { commandStore } from "./CommandPalette";
@@ -19,7 +18,7 @@ import { SegmentedControl } from "./SegmentedControl";
 import { WalletSessionActivityRail } from "./WalletSessionActivityRail";
 import { ActionToolbar, type ToolbarAction } from "./ActionToolbar";
 import { InlineStatDelta } from "./InlineStatDelta";
-import { QueueHealthWidget } from "./QueueHealthWidget";
+import { QueueHealthWidget, type QueueMetrics } from "./QueueHealthWidget";
 import { QueueStateMiniPanel } from "./QueueStateMiniPanel";
 import { CollapsibleStatsGroup } from "./CollapsibleStatsGroup";
 import { RewardBalanceSparklineCard } from "./RewardBalanceSparklineCard";
@@ -120,7 +119,7 @@ function readStoredLobbyContext(): LobbyContext | null {
 
 export const GameLobby: React.FC = () => {
   const [games, setGames] = useState<Game[]>(ONCHAIN_GAMES_CATALOG);
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
   const [lastGamesSyncAt, setLastGamesSyncAt] = useState<number | null>(null);
@@ -236,7 +235,7 @@ export const GameLobby: React.FC = () => {
       networkSupport.isSupported,
       networkSupport.normalizedActual,
       wallet.lastUpdatedAt,
-      wallet.provider?.name,
+      wallet.provider,
       wallet.refreshState.phase,
     ],
   );
@@ -319,6 +318,8 @@ export const GameLobby: React.FC = () => {
     if (pendingTransaction) {
       setPendingActionChipDismissed(false);
     }
+    // Intentionally keyed on txHash/updatedAt so the chip re-appears only for a new or updated transaction.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingTransaction?.txHash, pendingTransaction?.updatedAt]);
 
   useEffect(() => {
@@ -625,21 +626,19 @@ export const GameLobby: React.FC = () => {
   );
 
   const showMobileActionFooter = isMobileViewport && mobileToolbarActions.length > 0;
-  const queueSummaryMetrics = useMemo(
+  // The lobby has no live queue telemetry. Matchmaking counts and wait times
+  // are unknown, so they are reported as unavailable rather than derived from
+  // the catalog: a longer game list does not mean more players are queued.
+  const queueSummaryMetrics = useMemo<QueueMetrics>(
     () => ({
-      playersInQueue: activeGames.length * 4,
-      averageWaitTime: activeGames.length > 0 ? 95 : 0,
-      estimatedWaitTime: activeGames.length > 0 ? 70 : 0,
-      activeMatches: activeGames.length,
-      queueHealth:
-        activeGames.length === 0
-          ? ("offline" as const)
-          : activeGames.length > 5
-            ? ("healthy" as const)
-            : ("degraded" as const),
-      lastUpdated: new Date(lastGamesSyncAt ?? Date.now()).toISOString(),
+      playersInQueue: null,
+      averageWaitTime: null,
+      estimatedWaitTime: null,
+      activeMatches: null,
+      queueHealth: "unknown",
+      lastUpdated: lastGamesSyncAt ? new Date(lastGamesSyncAt).toISOString() : null,
     }),
-    [activeGames.length, lastGamesSyncAt],
+    [lastGamesSyncAt],
   );
   const compactLobbyStats = useMemo(
     () => [
@@ -692,12 +691,6 @@ export const GameLobby: React.FC = () => {
         Math.max(totalPrizeSignal * 0.88, 0),
         totalPrizeSignal,
       ];
-      const participationSeries = [
-        Math.max(activeGames.length - 1, 0),
-        activeGames.length,
-        activeGames.length + (activeGamesDelta && activeGamesDelta > 0 ? 1 : 0),
-        activeGames.length,
-      ];
       return [
         {
           id: "prize-reserve",
@@ -712,18 +705,15 @@ export const GameLobby: React.FC = () => {
           trend: activeGamesDelta !== null && activeGamesDelta < 0 ? ("down" as const) : ("up" as const),
         },
         {
+          // Player participation has no telemetry source, so the card stays
+          // explicitly empty instead of estimating from the catalog size.
           id: "arena-participation",
           label: "Arena Participation",
-          balance: `${activeGames.length * 4} players`,
-          balanceEquivalent: "Estimated queued + active players",
-          dataPoints: participationSeries,
-          change: queueSummaryMetrics.queueHealth === "healthy" ? "+8%" : "0%",
-          trend:
-            queueSummaryMetrics.queueHealth === "healthy"
-              ? ("up" as const)
-              : queueSummaryMetrics.queueHealth === "degraded"
-                ? ("flat" as const)
-                : ("down" as const),
+          balance: undefined,
+          balanceEquivalent: undefined,
+          dataPoints: [] as number[],
+          change: undefined,
+          trend: "flat" as const,
         },
       ];
     },
@@ -731,7 +721,6 @@ export const GameLobby: React.FC = () => {
       activeGames.length,
       activeGamesDelta,
       games.length,
-      queueSummaryMetrics.queueHealth,
       totalPrizeSignal,
     ],
   );

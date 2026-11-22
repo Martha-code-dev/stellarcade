@@ -1,5 +1,6 @@
 import * as React from "react";
 import { ChevronRight, MoreHorizontal } from "lucide-react";
+import { Slot } from "radix-ui";
 import { cn } from "@/lib/utils";
 
 function Breadcrumb({ ...props }: React.ComponentProps<"nav">) {
@@ -29,13 +30,23 @@ function BreadcrumbItem({ className, ...props }: React.ComponentProps<"li">) {
   );
 }
 
+/**
+ * A breadcrumb link.
+ *
+ * With `asChild`, the link styles and data-slot are merged onto the single
+ * child element (typically a Next `<Link>`) via Radix Slot instead of being
+ * wrapped in another `<a>`. That keeps exactly one semantic anchor per crumb
+ * and avoids the invalid nested `<a><a>` markup that produced hydration
+ * errors.
+ */
 function BreadcrumbLink({
   asChild,
   className,
   ...props
 }: React.ComponentProps<"a"> & { asChild?: boolean }) {
+  const Comp = asChild ? Slot.Root : "a";
   return (
-    <a
+    <Comp
       data-slot="breadcrumb-link"
       className={cn("transition-colors hover:text-foreground", className)}
       {...props}

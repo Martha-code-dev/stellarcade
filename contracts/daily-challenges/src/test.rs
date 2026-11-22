@@ -1,4 +1,3 @@
-#![cfg(test)]
 use super::*;
 use soroban_sdk::{symbol_short, testutils::Address as _, Address, Env};
 
@@ -171,4 +170,103 @@ fn test_reset_delay_overdue() {
     assert!(delay.configured);
     assert!(delay.reset_due);
     assert_eq!(delay.ledgers_until_reset, 0);
+}
+
+#[test]
+fn test_add_challenge_rejects_non_admin() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, _admin) = setup(&env);
+    let stranger = Address::generate(&env);
+
+    let res = client.try_add_challenge(
+        &stranger,
+        &symbol_short!("sneaky"),
+        &symbol_short!("Sneaky"),
+        &0,
+        &100,
+    );
+
+    assert_eq!(res, Err(Ok(Error::NotAuthorized)));
+    assert_eq!(client.get_challenge_ids().len(), 0);
+}
+
+#[test]
+fn test_add_challenge_rejected_while_paused() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, admin) = setup(&env);
+
+    client.set_paused(&admin, &true);
+    let res = client.try_add_challenge(
+        &admin,
+        &symbol_short!("ch1"),
+        &symbol_short!("Ch1"),
+        &0,
+        &100,
+    );
+    assert_eq!(res, Err(Ok(Error::ContractPaused)));
+    assert_eq!(client.get_challenge_ids().len(), 0);
+
+    client.set_paused(&admin, &false);
+    client.add_challenge(
+        &admin,
+        &symbol_short!("ch1"),
+        &symbol_short!("Ch1"),
+        &0,
+        &100,
+    );
+    assert_eq!(client.get_challenge_ids().len(), 1);
+}
+
+#[test]
+fn test_complete_challenge_rejects_duplicate_and_unknown() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, admin) = setup(&env);
+    let ch = symbol_short!("run5k");
+    let player = Address::generate(&env);
+    client.add_challenge(&admin, &ch, &symbol_short!("Run5k"), &0, &100);
+
+    client.complete_challenge(&player, &ch);
+    assert_eq!(
+        client.try_complete_challenge(&player, &ch),
+        Err(Ok(Error::AlreadyCompleted))
+    );
+    assert_eq!(
+        client.try_complete_challenge(&player, &symbol_short!("nope")),
+        Err(Ok(Error::ChallengeNotFound))
+    );
+}
+
+#[test]
+fn test_claim_reward_cannot_be_claimed_twice() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, admin) = setup(&env);
+    let ch = symbol_short!("run5k");
+    let player = Address::generate(&env);
+    client.add_challenge(&admin, &ch, &symbol_short!("Run5k"), &0, &100);
+    client.complete_challenge(&player, &ch);
+
+    assert_eq!(client.claim_reward(&player, &ch), 100);
+    assert_eq!(
+        client.try_claim_reward(&player, &ch),
+        Err(Ok(Error::AlreadyClaimed))
+    );
+    assert!(client.completion_snapshot(&ch, &player).claimed);
+}
+
+#[test]
+fn test_complete_challenge_requires_player_auth() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, admin) = setup(&env);
+    let ch = symbol_short!("run5k");
+    let player = Address::generate(&env);
+    client.add_challenge(&admin, &ch, &symbol_short!("Run5k"), &0, &100);
+
+    env.set_auths(&[]);
+    assert!(client.try_complete_challenge(&player, &ch).is_err());
+    assert!(!client.completion_snapshot(&ch, &player).completed);
 }

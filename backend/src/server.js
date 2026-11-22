@@ -108,27 +108,35 @@ if (process.env.NODE_ENV !== 'test') {
 const gracefulShutdown = async () => {
   logger.info('SIGTERM/SIGINT received. Starting graceful shutdown...');
 
-  workers.forEach((worker) => worker.stop());
+  // Close the server first to stop accepting new requests.
+  const serverClosed = new Promise((resolve) => server.close(resolve));
 
-  // Close the server first to stop accepting new requests
-  server.close(async () => {
-    logger.info('HTTP server closed.');
+  // Stop scheduling new worker cycles and drain any cycle already in flight
+  // before the database and RPC connections they use are torn down (#1577).
+  // A worker whose stop() rejects must not block shutdown of the others.
+  const workersDrained = workers.map((worker) =>
+    Promise.resolve(worker.stop()).catch((err) =>
+      logger.error('Error while stopping worker', { error: err.message })
+    )
+  );
 
-    try {
-      // Close database and redis connections
-      await db.destroy();
-      logger.info('Database connection closed.');
+  await Promise.all([serverClosed, ...workersDrained]);
+  logger.info('HTTP server closed.');
 
-      // Redis client disconnect (owned by src/config/redis.js)
-      await redis.disconnectRedis();
-      logger.info('Redis connection closed.');
+  try {
+    // Close database and redis connections
+    await db.destroy();
+    logger.info('Database connection closed.');
 
-      process.exit(0);
-    } catch (err) {
-      logger.error('Error during shutdown:', err);
-      process.exit(1);
-    }
-  });
+    // Redis client disconnect (owned by src/config/redis.js)
+    await redis.disconnectRedis();
+    logger.info('Redis connection closed.');
+
+    process.exit(0);
+  } catch (err) {
+    logger.error('Error during shutdown:', err);
+    process.exit(1);
+  }
 };
 
 process.on('SIGTERM', gracefulShutdown);

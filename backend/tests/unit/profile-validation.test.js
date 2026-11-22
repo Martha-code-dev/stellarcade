@@ -10,7 +10,10 @@ const VALID_ADDRESS = 'GAEP3MEIODZFPOYG3H644CBXWFSPGCQC7DM74GSJIH6SH7RJZTAE3XYE'
 
 describe('validateWalletAddress', () => {
   test.each([undefined, null, '', '   '])('rejects a missing address (%p)', (value) => {
-    expect(validateWalletAddress(value)).toMatchObject({ code: 'INVALID_REQUEST', statusCode: 400 });
+    expect(validateWalletAddress(value)).toMatchObject({
+      code: 'INVALID_REQUEST',
+      statusCode: 400,
+    });
   });
 
   test.each(['G_GUEST_PLAYER', 'not-an-address', 123, {}, VALID_ADDRESS.slice(0, -1)])(
@@ -20,7 +23,7 @@ describe('validateWalletAddress', () => {
         code: 'INVALID_ADDRESS',
         statusCode: 400,
       });
-    },
+    }
   );
 
   test('accepts a real Stellar public key, including surrounding whitespace', () => {
@@ -69,7 +72,7 @@ describe('validateProfileInput', () => {
         ageConfirmed: true,
         telegramHandle: '@runner',
         telegramUserId: '12345',
-      }),
+      })
     ).toBeNull();
   });
 

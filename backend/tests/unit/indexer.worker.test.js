@@ -12,6 +12,7 @@ const db = require('../../src/config/database');
 const { createIndexer, stroopsToUnits } = require('../../src/services/indexer.worker');
 
 const COIN_FLIP_ID = StellarSdk.StrKey.encodeContract(Buffer.alloc(32, 2));
+const DICE_ROLL_ID = StellarSdk.StrKey.encodeContract(Buffer.alloc(32, 3));
 const LINKED_PLAYER = StellarSdk.Keypair.random().publicKey();
 const ANON_PLAYER = StellarSdk.Keypair.random().publicKey();
 const PLACE_TX = '1f'.repeat(32);
@@ -54,16 +55,71 @@ const betResolved = ({ id, gameId, player, won = true, payout = 49_000_000n }) =
   ]),
 });
 
+/** RollPlaced exactly as dice-roll emits it: data map { prediction: u32, wager: i128 }. */
+const rollPlaced = ({ id, gameId, player, prediction = 3, wager = 10_000_000n }) => ({
+  id,
+  txHash: PLACE_TX,
+  ledger: 500,
+  ledgerClosedAt: '2026-10-01T12:00:00Z',
+  inSuccessfulContractCall: true,
+  topic: topics('roll_placed', gameId, player),
+  value: StellarSdk.xdr.ScVal.scvMap([
+    entry('prediction', StellarSdk.nativeToScVal(prediction, { type: 'u32' })),
+    entry('wager', StellarSdk.nativeToScVal(wager, { type: 'i128' })),
+  ]),
+});
+
+/** RollResolved: data map { result: u32, won: bool, payout: i128 }. */
+const rollResolved = ({ id, gameId, player, result = 3, won = true, payout = 19_000_000n }) => ({
+  id,
+  txHash: RESOLVE_TX,
+  ledger: 502,
+  ledgerClosedAt: '2026-10-01T12:00:10Z',
+  inSuccessfulContractCall: true,
+  topic: topics('roll_resolved', gameId, player),
+  value: StellarSdk.xdr.ScVal.scvMap([
+    entry('result', StellarSdk.nativeToScVal(result, { type: 'u32' })),
+    entry('won', StellarSdk.xdr.ScVal.scvBool(won)),
+    entry('payout', StellarSdk.nativeToScVal(payout, { type: 'i128' })),
+  ]),
+});
+
 const makeSoroban = (pages = []) => ({
   simulate: jest.fn(),
   getLatestLedger: jest.fn(async () => 400),
   getEvents: jest.fn(async () => pages.shift() || { events: [], cursor: null }),
 });
 
-const makeIndexer = (soroban) => createIndexer({ db, soroban, contractId: COIN_FLIP_ID });
+/** A stub that serves a separate page queue per contract id. */
+const makeMultiSoroban = (pagesByContract = {}) => ({
+  simulate: jest.fn(),
+  getLatestLedger: jest.fn(async () => 400),
+  getEvents: jest.fn(async (query) => {
+    const queue = pagesByContract[query.contractIds[0]] || [];
+    return queue.shift() || { events: [], cursor: null };
+  }),
+});
+
+const makeIndexer = (soroban, options = {}) =>
+  createIndexer({ db, soroban, contractId: COIN_FLIP_ID, ...options });
+
+/** Indexes coin-flip and dice-roll together, each on its own contract. */
+const makeMultiIndexer = (soroban, options = {}) =>
+  createIndexer({
+    db,
+    soroban,
+    contractId: COIN_FLIP_ID,
+    diceRollContractId: DICE_ROLL_ID,
+    ...options,
+  });
 
 const gameRow = (gameId) =>
   db('games').where({ contract_id: COIN_FLIP_ID, chain_game_id: gameId }).first();
+
+const diceRow = (gameId) =>
+  db('games').where({ contract_id: DICE_ROLL_ID, chain_game_id: gameId }).first();
+
+const cursorRow = (name) => db('worker_cursors').where({ name }).first();
 
 const questProgress = async (userId, slug) => {
   const row = await db('user_quests')
@@ -184,6 +240,46 @@ describe('indexer worker', () => {
     expect(await questProgress(linkedUserId, 'win-3-games')).toBe(1);
   });
 
+  test('a quest-credit failure rolls back the resolution and cursor, so a retry credits exactly once (#1580)', async () => {
+    const RealQuestModel = require('../../src/models/Quest.model');
+    const batch = () => [
+      betPlaced({ id: 'e1', gameId: 18, player: LINKED_PLAYER }),
+      betResolved({ id: 'e2', gameId: 18, player: LINKED_PLAYER, won: true }),
+    ];
+
+    // First attempt: the quest write fails on the resolution event.
+    const failingQuest = {
+      recordProgress: jest.fn(async () => {
+        throw new Error('quest store temporarily unavailable');
+      }),
+    };
+    await expect(
+      makeIndexer(makeSoroban([{ events: batch(), cursor: 'e2' }]), { QuestModel: failingQuest })
+        .processEvents()
+    ).rejects.toThrow('quest store temporarily unavailable');
+
+    // The failed event committed nothing: the game is still pending, no quest
+    // credit was given, and the cursor stayed at the last successful event.
+    expect((await gameRow('18')).status).toBe('pending');
+    expect(await questProgress(linkedUserId, 'play-5-games')).toBe(0);
+    expect(await db('worker_cursors').where({ name: 'indexer' }).first()).toMatchObject({
+      cursor: 'e1',
+    });
+
+    // Retry with a working quest store: exactly one credit, cursor now advanced.
+    await makeIndexer(
+      makeSoroban([{ events: batch(), cursor: 'e2' }]),
+      { QuestModel: RealQuestModel }
+    ).processEvents();
+
+    expect((await gameRow('18')).status).toBe('resolved');
+    expect(await questProgress(linkedUserId, 'play-5-games')).toBe(1);
+    expect(await questProgress(linkedUserId, 'win-3-games')).toBe(1);
+    expect(await db('worker_cursors').where({ name: 'indexer' }).first()).toMatchObject({
+      cursor: 'e2',
+    });
+  });
+
   test('an event from a wallet with no user account is still indexed', async () => {
     const soroban = makeSoroban([
       {
@@ -245,6 +341,265 @@ describe('indexer worker', () => {
     const row = await gameRow('17');
     expect(row).toMatchObject({ status: 'resolved', result: 'loss', side: 'heads', tx_hash: null });
     expect(Number(row.bet_amount)).toBe(1);
+  });
+});
+
+describe('indexer worker — dice-roll (#1579)', () => {
+  test('RollPlaced creates a pending dice row with the predicted face', async () => {
+    const soroban = makeMultiSoroban({
+      [DICE_ROLL_ID]: [
+        {
+          events: [rollPlaced({ id: 'd1', gameId: 21, player: LINKED_PLAYER, prediction: 5 })],
+          cursor: 'd1',
+        },
+      ],
+    });
+
+    await makeMultiIndexer(soroban).processEvents();
+
+    const row = await diceRow('21');
+    expect(row).toMatchObject({
+      contract_id: DICE_ROLL_ID,
+      player_address: LINKED_PLAYER,
+      user_id: linkedUserId,
+      game_type: 'dice-roll',
+      side: '5',
+      result: 'pending',
+      status: 'pending',
+      tx_hash: PLACE_TX,
+      ledger: 500,
+    });
+    expect(Number(row.bet_amount)).toBe(1);
+    // The coin-flip stream is untouched.
+    expect(await db('games').where({ contract_id: COIN_FLIP_ID }).first()).toBeUndefined();
+  });
+
+  test('RollResolved updates the dice row once and records quest progress', async () => {
+    const soroban = makeMultiSoroban({
+      [DICE_ROLL_ID]: [
+        {
+          events: [
+            rollPlaced({ id: 'd1', gameId: 22, player: LINKED_PLAYER, prediction: 2 }),
+            rollResolved({ id: 'd2', gameId: 22, player: LINKED_PLAYER, result: 2, won: true }),
+          ],
+          cursor: 'd2',
+        },
+      ],
+    });
+
+    await makeMultiIndexer(soroban).processEvents();
+
+    const row = await diceRow('22');
+    expect(row).toMatchObject({ status: 'resolved', result: 'win', resolve_tx_hash: RESOLVE_TX });
+    expect(Number(row.payout)).toBe(1.9);
+    expect(await questProgress(linkedUserId, 'play-5-games')).toBe(1);
+    expect(await questProgress(linkedUserId, 'win-3-games')).toBe(1);
+  });
+
+  test('a lost dice roll counts toward play-5-games but not win-3-games', async () => {
+    const soroban = makeMultiSoroban({
+      [DICE_ROLL_ID]: [
+        {
+          events: [
+            rollPlaced({ id: 'd1', gameId: 23, player: LINKED_PLAYER, prediction: 6 }),
+            rollResolved({
+              id: 'd2',
+              gameId: 23,
+              player: LINKED_PLAYER,
+              result: 1,
+              won: false,
+              payout: 0n,
+            }),
+          ],
+          cursor: 'd2',
+        },
+      ],
+    });
+
+    await makeMultiIndexer(soroban).processEvents();
+
+    expect((await diceRow('23')).result).toBe('loss');
+    expect(await questProgress(linkedUserId, 'play-5-games')).toBe(1);
+    expect(await questProgress(linkedUserId, 'win-3-games')).toBe(0);
+  });
+
+  test('a coin-flip and a dice-roll game with the same id stay distinct rows', async () => {
+    const soroban = makeMultiSoroban({
+      [COIN_FLIP_ID]: [
+        {
+          events: [betPlaced({ id: 'c1', gameId: 7, player: LINKED_PLAYER, side: 1 })],
+          cursor: 'c1',
+        },
+      ],
+      [DICE_ROLL_ID]: [
+        {
+          events: [rollPlaced({ id: 'd1', gameId: 7, player: LINKED_PLAYER, prediction: 4 })],
+          cursor: 'd1',
+        },
+      ],
+    });
+
+    await makeMultiIndexer(soroban).processEvents();
+
+    expect(await db('games').count('* as n').first()).toMatchObject({ n: 2 });
+    expect(await gameRow('7')).toMatchObject({ game_type: 'coin-flip', side: 'tails' });
+    expect(await diceRow('7')).toMatchObject({ game_type: 'dice-roll', side: '4' });
+  });
+
+  test('coin-flip and dice-roll keep independent cursors', async () => {
+    const soroban = makeMultiSoroban({
+      [COIN_FLIP_ID]: [
+        { events: [betPlaced({ id: 'c1', gameId: 31, player: LINKED_PLAYER })], cursor: 'c1' },
+      ],
+      [DICE_ROLL_ID]: [
+        { events: [rollPlaced({ id: 'd1', gameId: 41, player: LINKED_PLAYER })], cursor: 'd1' },
+      ],
+    });
+
+    await makeMultiIndexer(soroban).processEvents();
+
+    expect(await cursorRow('indexer')).toMatchObject({ cursor: 'c1' });
+    expect(await cursorRow('indexer:dice-roll')).toMatchObject({ cursor: 'd1' });
+  });
+
+  test('resumes each game from its own saved cursor after a restart', async () => {
+    const first = makeMultiSoroban({
+      [COIN_FLIP_ID]: [
+        { events: [betPlaced({ id: 'c1', gameId: 51, player: LINKED_PLAYER })], cursor: 'c1' },
+      ],
+      [DICE_ROLL_ID]: [
+        { events: [rollPlaced({ id: 'd1', gameId: 61, player: LINKED_PLAYER })], cursor: 'd1' },
+      ],
+    });
+    await makeMultiIndexer(first).processEvents();
+
+    const second = makeMultiSoroban({
+      [COIN_FLIP_ID]: [{ events: [], cursor: 'c1' }],
+      [DICE_ROLL_ID]: [{ events: [], cursor: 'd1' }],
+    });
+    await makeMultiIndexer(second).processEvents();
+
+    const queriesFor = (id) =>
+      second.getEvents.mock.calls.map(([q]) => q).filter((q) => q.contractIds[0] === id);
+    expect(queriesFor(COIN_FLIP_ID)[0]).toMatchObject({ cursor: 'c1' });
+    expect(queriesFor(COIN_FLIP_ID)[0].startLedger).toBeUndefined();
+    expect(queriesFor(DICE_ROLL_ID)[0]).toMatchObject({ cursor: 'd1' });
+    expect(queriesFor(DICE_ROLL_ID)[0].startLedger).toBeUndefined();
+  });
+
+  test('replaying a dice batch is idempotent, including quest progress', async () => {
+    const batch = () => [
+      rollPlaced({ id: 'd1', gameId: 71, player: LINKED_PLAYER, prediction: 3 }),
+      rollResolved({ id: 'd2', gameId: 71, player: LINKED_PLAYER, result: 3, won: true }),
+    ];
+    await makeMultiIndexer(
+      makeMultiSoroban({ [DICE_ROLL_ID]: [{ events: batch(), cursor: 'd2' }] })
+    ).processEvents();
+    const before = await diceRow('71');
+
+    // Lose the dice cursor so the same events are delivered again.
+    await db('worker_cursors').where({ name: 'indexer:dice-roll' }).del();
+    await makeMultiIndexer(
+      makeMultiSoroban({ [DICE_ROLL_ID]: [{ events: batch(), cursor: 'd2' }] })
+    ).processEvents();
+
+    expect(
+      await db('games').where({ contract_id: DICE_ROLL_ID }).count('* as n').first()
+    ).toMatchObject({ n: 1 });
+    expect(await diceRow('71')).toEqual(before);
+    expect(await questProgress(linkedUserId, 'play-5-games')).toBe(1);
+    expect(await questProgress(linkedUserId, 'win-3-games')).toBe(1);
+  });
+
+  test('RollResolved for a roll placed before the start ledger reads the roll from the contract', async () => {
+    const soroban = makeMultiSoroban({
+      [DICE_ROLL_ID]: [
+        {
+          events: [
+            rollResolved({
+              id: 'd1',
+              gameId: 81,
+              player: ANON_PLAYER,
+              result: 4,
+              won: false,
+              payout: 0n,
+            }),
+          ],
+          cursor: 'd1',
+        },
+      ],
+    });
+    soroban.simulate.mockResolvedValue({
+      player: ANON_PLAYER,
+      prediction: 4,
+      wager: 5_000_000n,
+      resolved: true,
+      won: false,
+      result: 1,
+      payout: 0n,
+    });
+
+    await makeMultiIndexer(soroban).processEvents();
+
+    expect(soroban.simulate).toHaveBeenCalledWith(DICE_ROLL_ID, 'get_roll', expect.any(Array));
+    const row = await diceRow('81');
+    expect(row).toMatchObject({
+      status: 'resolved',
+      result: 'loss',
+      side: '4',
+      tx_hash: null,
+      user_id: null,
+    });
+    expect(Number(row.bet_amount)).toBe(0.5);
+  });
+
+  test('coin-flip and dice-roll resolution both appear in the shared history and leaderboard', async () => {
+    const soroban = makeMultiSoroban({
+      [COIN_FLIP_ID]: [
+        {
+          events: [
+            betPlaced({ id: 'c1', gameId: 91, player: LINKED_PLAYER }),
+            betResolved({
+              id: 'c2',
+              gameId: 91,
+              player: LINKED_PLAYER,
+              won: true,
+              payout: 49_000_000n,
+            }),
+          ],
+          cursor: 'c2',
+        },
+      ],
+      [DICE_ROLL_ID]: [
+        {
+          events: [
+            rollPlaced({ id: 'd1', gameId: 92, player: LINKED_PLAYER, prediction: 2 }),
+            rollResolved({
+              id: 'd2',
+              gameId: 92,
+              player: LINKED_PLAYER,
+              result: 2,
+              won: true,
+              payout: 19_000_000n,
+            }),
+          ],
+          cursor: 'd2',
+        },
+      ],
+    });
+
+    await makeMultiIndexer(soroban).processEvents();
+
+    const GameModel = require('../../src/models/Game.model');
+    const { items } = await GameModel.findRecent({ page: 1, limit: 10 });
+    expect(items.map((g) => g.game_type).sort()).toEqual(['coin-flip', 'dice-roll']);
+
+    const leaderboard = await GameModel.getLeaderboard({ limit: 10 });
+    expect(leaderboard).toHaveLength(1);
+    expect(leaderboard[0].playerAddress).toBe(LINKED_PLAYER);
+    expect(leaderboard[0].gamesPlayed).toBe(2);
+    // net = (4.9 - 2.5) + (1.9 - 1.0) = 3.3
+    expect(Number(leaderboard[0].score)).toBeCloseTo(3.3, 7);
   });
 });
 

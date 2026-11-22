@@ -15,6 +15,8 @@ MAX_WAGER="1000000000"    # 100 XLM
 BANKROLL="10000000000"
 DICE_BANKROLL="10000000000"    # 1,000 XLM
 HOUSE_EDGE_BPS="250"      # 2.5%
+# Native XLM SAC on testnet. Declared before any contract initialization.
+NATIVE_SAC="CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -33,7 +35,6 @@ Options:
   --min-wager <amount>   Minimum allowed wager in stroops (default: 10000000)
   --max-wager <amount>   Maximum allowed wager in stroops (default: 1000000000)
   --bankroll <amount>    Initial bankroll funding in stroops (default: 10000000000)
-  --dice-bankroll <amount> Initial dice-roll bankroll in stroops (default: 10000000000)
   --dice-bankroll <amount> Initial dice-roll bankroll in stroops (default: 10000000000)
   --help                 Show this help message
 EOF
@@ -168,8 +169,6 @@ stellar contract invoke --id "$RNG_ID" --source "$SOURCE" --network "$NETWORK" -
 stellar contract invoke --id "$DICE_ROLL_ID" --source "$SOURCE" --network "$NETWORK" -- init --admin "$ADMIN_ADDR" --rng_contract "$RNG_ID" --token "$NATIVE_SAC" --min_wager "$MIN_WAGER" --max_wager "$MAX_WAGER" --house_edge_bps "$HOUSE_EDGE_BPS"
 echo "Funding dice-roll bankroll ($DICE_BANKROLL stroops)..."
 stellar contract invoke --id "$DICE_ROLL_ID" --source "$SOURCE" --network "$NETWORK" -- fund_house --admin "$ADMIN_ADDR" --amount "$DICE_BANKROLL"
-# Native XLM SAC on testnet
-NATIVE_SAC="CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC"
 
 # Authorize coin-flip on random-generator
 echo "Authorizing coin-flip as caller on random-generator..."
@@ -232,7 +231,6 @@ cat <<EOF > "$DEPLOYMENTS_FILE"
     "coinFlip": "$COIN_FLIP_ID",
     "randomGenerator": "$RNG_ID",
     "diceRoll": "$DICE_ROLL_ID"
-    "diceRoll": "$DICE_ROLL_ID"
   },
   "nativeToken": "$NATIVE_SAC",
   "deployedAt": "$DEPLOYED_AT"
@@ -258,3 +256,5 @@ echo "COIN_FLIP_CONTRACT_ID=$COIN_FLIP_ID"
 echo "DICE_ROLL_CONTRACT_ID=$DICE_ROLL_ID"
 echo "RANDOM_GENERATOR_CONTRACT_ID=$RNG_ID"
 echo "============================================="
+echo "Verify the live addresses and TTL recovery state with:"
+echo "node scripts/verify-deployment-config.mjs"

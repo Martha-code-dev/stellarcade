@@ -39,10 +39,9 @@ const postLogin = async (req, res, next) => {
 
     await authService.verifySignature(address, signature);
 
-    let user = await User.findByWallet(address);
-    if (!user) {
-      user = await User.create({ wallet_address: address, username: 'player' });
-    }
+    // First login reserves the wallet only. An invented shared username would
+    // collide with the canonical username reservation used by onboarding.
+    const user = await User.reserveWallet(address);
 
     const token = authService.issueToken(user);
 

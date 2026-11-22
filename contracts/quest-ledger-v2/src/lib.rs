@@ -1,12 +1,12 @@
 #![no_std]
 
 use soroban_sdk::{
-    contract, contracterror, contractimpl, contracttype, symbol_short, Address, Env, Map, Symbol,
-    Vec,
+    contract, contracterror, contractimpl, contracttype, symbol_short, Address, Env, Symbol,
 };
 
 pub mod storage;
-pub mod test;
+#[cfg(test)]
+mod test;
 pub mod types;
 
 #[derive(Clone)]
@@ -23,7 +23,7 @@ pub enum DataKey {
     QueueSnapshot(u64), // timestamp
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[contracttype]
 pub struct QuestCompletion {
     pub quest_id: u64,
@@ -34,7 +34,7 @@ pub struct QuestCompletion {
     pub status: Symbol, // "PENDING", "PROCESSED", "DELAYED"
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[contracttype]
 pub struct CompletionQueueSnapshot {
     pub timestamp: u64,
@@ -47,7 +47,7 @@ pub struct CompletionQueueSnapshot {
     pub queue_health_score: u32, // 0-100
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[contracttype]
 pub struct RewardDelayAccessor {
     pub quest_id: u64,
@@ -59,7 +59,7 @@ pub struct RewardDelayAccessor {
     pub can_expedite: bool,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[contracttype]
 pub struct QueueMetrics {
     pub total_completions: u32,
@@ -222,7 +222,7 @@ impl QuestLedgerV2 {
             total_processing: 0,
             total_delayed: 0,
             oldest_pending: if total_quests > 0 {
-                Some(current_time - 3600)
+                Some(current_time.saturating_sub(3600))
             } else {
                 None
             },
@@ -359,62 +359,5 @@ impl QuestLedgerV2 {
             return Err(Error::Paused);
         }
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use soroban_sdk::{testutils::Address as _, Address, Env};
-
-    fn setup() -> (Env, Address, Address, Address) {
-        let env = Env::default();
-        let admin = Address::generate(&env);
-        let player = Address::generate(&env);
-        let token = Address::generate(&env);
-        (env, admin, player, token)
-    }
-
-    #[test]
-    fn test_init_success() {
-        let (env, admin, _, _) = setup();
-        let result = QuestLedgerV2::init(env, admin);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_complete_quest_success() {
-        let (env, admin, player, token) = setup();
-        QuestLedgerV2::init(env.clone(), admin).unwrap();
-
-        let result = QuestLedgerV2::complete_quest(env, player, 1, 100, token);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_get_completion_queue_snapshot() {
-        let (env, admin, player, token) = setup();
-        QuestLedgerV2::init(env.clone(), admin).unwrap();
-        QuestLedgerV2::complete_quest(env.clone(), player, 1, 100, token).unwrap();
-
-        let result = QuestLedgerV2::get_completion_queue_snapshot(env);
-        assert!(result.is_ok());
-        let snapshot = result.unwrap();
-        assert_eq!(snapshot.total_pending, 1);
-    }
-
-    #[test]
-    fn test_reward_delay_accessor() {
-        let (env, admin, _, _) = setup();
-        QuestLedgerV2::init(env.clone(), admin.clone()).unwrap();
-
-        QuestLedgerV2::set_reward_delay(env.clone(), admin, 1, 3600, symbol_short!("REVIEW"))
-            .unwrap();
-
-        let result = QuestLedgerV2::get_reward_delay_accessor(env, 1);
-        assert!(result.is_ok());
-        let accessor = result.unwrap();
-        assert_eq!(accessor.base_delay, 3600);
-        assert_eq!(accessor.delay_reason, symbol_short!("REVIEW"));
     }
 }

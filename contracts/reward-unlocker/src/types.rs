@@ -1,8 +1,8 @@
-use soroban_sdk::{Address, contracttype};
+use soroban_sdk::{contracttype, Address};
 
 /// Queue state for a pending reward unlock.
 #[contracttype]
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum QueueStatus {
     /// Queued and waiting for unlock window.
     Pending = 0,
@@ -81,17 +81,4 @@ pub enum DataKey {
     NextQueueId,
     /// Total queued amount per recipient (persistent, for caching).
     RecipientTotalQueued(Address),
-}
-
-/// Error codes for contract operations.
-#[repr(u32)]
-pub enum Error {
-    NotInitialized = 1,
-    AlreadyInitialized = 2,
-    NotAuthorized = 3,
-    QueueEntryNotFound = 4,
-    InvalidAmount = 5,
-    InvalidCooldown = 6,
-    Overflow = 7,
-    EmptyQueue = 8,
 }

@@ -175,8 +175,7 @@ impl ReferralQuests {
 
         let total = quest
             .pending_completion_count
-            .checked_add(quest.paid_completion_count)
-            .unwrap_or(u32::MAX);
+            .saturating_add(quest.paid_completion_count);
 
         CompletionQueueSummary {
             quest_id,
@@ -346,7 +345,7 @@ fn require_admin(env: &Env, admin: &Address) {
         .instance()
         .get(&DataKey::Admin)
         .expect("Not initialized");
-    assert!(stored == *admin, "Unauthorized");
+    assert_eq!(stored, *admin, "Unauthorized");
 }
 
 #[cfg(test)]

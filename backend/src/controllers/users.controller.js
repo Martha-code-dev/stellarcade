@@ -201,19 +201,26 @@ const createProfile = async (req, res, next) => {
     if (!user) {
       user = await User.create({
         wallet_address: walletAddress,
-        username: req.body.username ? req.body.username.trim() : 'player',
+        ...(req.body.username !== undefined ? { username: req.body.username.trim() } : {}),
         age_confirmed_at: req.body.ageConfirmed === true ? new Date() : null,
       });
-    } else if (req.body.ageConfirmed === true && !user.age_confirmed_at) {
-      // Idempotent create hit a wallet that already has a profile (e.g. one
-      // that predates the age gate) — record the confirmation on it instead
-      // of silently dropping it, or this profile can never clear onboarding.
-      user = await User.updateByWallet(walletAddress, { age_confirmed_at: new Date() });
+    } else {
+      // A wallet reserved at login has no public name yet. Finish that row
+      // rather than inserting a second profile, and keep an existing name
+      // untouched so the create call stays idempotent.
+      const patch = {};
+      if (!user.username && req.body.username !== undefined) {
+        patch.username = req.body.username.trim();
+      }
+      if (req.body.ageConfirmed === true && !user.age_confirmed_at) {
+        patch.age_confirmed_at = new Date();
+      }
+      if (Object.keys(patch).length > 0) {
+        user = await User.updateByWallet(walletAddress, patch);
+      }
     }
 
-    res
-      .status(201)
-      .json(serializeUser(user, { includeLinkedAccounts: isOwner(req, user) }));
+    res.status(201).json(serializeUser(user, { includeLinkedAccounts: isOwner(req, user) }));
   } catch (error) {
     next(error);
   }
@@ -246,14 +253,13 @@ const updateProfile = async (req, res, next) => {
     if (req.body.telegramHandle !== undefined) patch.telegram_handle = req.body.telegramHandle;
     // Only ever set, never clear — an absent or false `ageConfirmed` here
     // must not erase a confirmation the player already gave.
-    if (req.body.ageConfirmed === true && !user.age_confirmed_at) patch.age_confirmed_at = new Date();
+    if (req.body.ageConfirmed === true && !user.age_confirmed_at)
+      patch.age_confirmed_at = new Date();
 
     const updated =
       Object.keys(patch).length > 0 ? await User.updateByWallet(walletAddress, patch) : user;
 
-    res
-      .status(200)
-      .json(serializeUser(updated, { includeLinkedAccounts: isOwner(req, updated) }));
+    res.status(200).json(serializeUser(updated, { includeLinkedAccounts: isOwner(req, updated) }));
   } catch (error) {
     next(error);
   }

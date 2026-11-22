@@ -1,5 +1,5 @@
-use soroban_sdk::{contracttype, Symbol, Vec};
 use crate::types::RosterSlot;
+use soroban_sdk::{contracttype, Symbol, Vec};
 
 pub const PERSISTENT_BUMP: u32 = 518_400; // ~30 days
 
@@ -13,6 +13,7 @@ pub enum DataKey {
     Paused,
 }
 
+#[allow(dead_code)]
 pub fn read_slots(env: &soroban_sdk::Env, roles: &Vec<Symbol>) -> Vec<RosterSlot> {
     let mut slots = soroban_sdk::Vec::new(env);
     for role in roles.iter() {

@@ -1,8 +1,7 @@
 #![cfg(test)]
 
 use soroban_sdk::{
-    contract, contractimpl, vec, Address, BytesN, Env, IntoVal, Symbol,
-    testutils::Address as _,
+    contract, contractimpl, testutils::Address as _, vec, Address, BytesN, Env, IntoVal, Symbol,
 };
 use stellarcade_comprehensive_test_suite::ComprehensiveTestSuite;
 
@@ -28,7 +27,10 @@ fn integration_gate_read_flow() {
     let reporter = Address::generate(&env);
 
     let gate_contract_id = env.register(ComprehensiveTestSuite, ());
-    let gate = stellarcade_comprehensive_test_suite::ComprehensiveTestSuiteClient::new(&env, &gate_contract_id);
+    let gate = stellarcade_comprehensive_test_suite::ComprehensiveTestSuiteClient::new(
+        &env,
+        &gate_contract_id,
+    );
 
     let consumer_id = env.register(GateConsumer, ());
     let consumer = GateConsumerClient::new(&env, &consumer_id);
@@ -44,14 +46,7 @@ fn integration_gate_read_flow() {
 
     let build_id = BytesN::from_array(&env, &[7u8; 32]);
     let ok = gate.record_run(
-        &reporter,
-        &suite,
-        &build_id,
-        &5u32,
-        &0u32,
-        &9_000u32,
-        &true,
-        &false,
+        &reporter, &suite, &build_id, &5u32, &0u32, &9_000u32, &true, &false,
     );
     assert!(ok);
 

@@ -1,5 +1,5 @@
-use soroban_sdk::{contracttype, Address, Env};
 use crate::types::{RewardConfig, UserRewardState};
+use soroban_sdk::{contracttype, Address, Env};
 
 #[contracttype]
 #[derive(Clone)]
@@ -23,7 +23,11 @@ pub fn get_user_state(env: &Env, user: &Address) -> Option<UserRewardState> {
     let key = DataKey::UserState(user.clone());
     let state = env.storage().persistent().get(&key);
     if state.is_some() {
-        env.storage().persistent().extend_ttl(&key, PERSISTENT_BUMP_THRESHOLD, PERSISTENT_BUMP_LEDGERS);
+        env.storage().persistent().extend_ttl(
+            &key,
+            PERSISTENT_BUMP_THRESHOLD,
+            PERSISTENT_BUMP_LEDGERS,
+        );
     }
     state
 }
@@ -31,5 +35,7 @@ pub fn get_user_state(env: &Env, user: &Address) -> Option<UserRewardState> {
 pub fn set_user_state(env: &Env, user: &Address, state: &UserRewardState) {
     let key = DataKey::UserState(user.clone());
     env.storage().persistent().set(&key, state);
-    env.storage().persistent().extend_ttl(&key, PERSISTENT_BUMP_THRESHOLD, PERSISTENT_BUMP_LEDGERS);
+    env.storage()
+        .persistent()
+        .extend_ttl(&key, PERSISTENT_BUMP_THRESHOLD, PERSISTENT_BUMP_LEDGERS);
 }

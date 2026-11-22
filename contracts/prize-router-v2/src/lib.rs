@@ -9,8 +9,8 @@
 mod storage;
 mod types;
 
+use storage::DataKey;
 pub use types::*;
-use storage::{DataKey, PERSISTENT_BUMP};
 
 use soroban_sdk::{contract, contracterror, contractimpl, Address, Env, Vec};
 
@@ -23,11 +23,11 @@ use soroban_sdk::{contract, contracterror, contractimpl, Address, Env, Vec};
 #[repr(u32)]
 pub enum Error {
     AlreadyInitialized = 1,
-    NotInitialized     = 2,
-    NotAuthorized      = 3,
-    ContractPaused     = 4,
-    InvalidAmount      = 5,
-    IndexOutOfRange    = 6,
+    NotInitialized = 2,
+    NotAuthorized = 3,
+    ContractPaused = 4,
+    InvalidAmount = 5,
+    IndexOutOfRange = 6,
 }
 
 const DEFAULT_DELAY_LEDGERS: u32 = 100;
@@ -69,11 +69,7 @@ impl PrizeRouterV2Contract {
         Ok(())
     }
 
-    pub fn set_pressure_threshold(
-        env: Env,
-        admin: Address,
-        threshold: u32,
-    ) -> Result<(), Error> {
+    pub fn set_pressure_threshold(env: Env, admin: Address, threshold: u32) -> Result<(), Error> {
         require_admin(&env, &admin)?;
         env.storage()
             .instance()
@@ -196,27 +192,28 @@ impl PrizeRouterV2Contract {
             .get(&DataKey::Queue)
             .unwrap_or(Vec::new(&env));
 
-        if index >= queue.len() {
-            return PayoutDelayInfo {
+        let entry = queue.get(index);
+        let current = env.ledger().sequence();
+        match entry {
+            Some(entry) => {
+                let releasable = current >= entry.release_after;
+                let ledgers_remaining = if releasable {
+                    0
+                } else {
+                    entry.release_after.saturating_sub(current)
+                };
+
+                PayoutDelayInfo {
+                    found: true,
+                    ledgers_remaining,
+                    releasable,
+                }
+            }
+            None => PayoutDelayInfo {
                 found: false,
                 ledgers_remaining: 0,
                 releasable: false,
-            };
-        }
-
-        let entry = queue.get_unchecked(index);
-        let current = env.ledger().sequence();
-        let releasable = current >= entry.release_after;
-        let ledgers_remaining = if releasable {
-            0
-        } else {
-            entry.release_after.saturating_sub(current)
-        };
-
-        PayoutDelayInfo {
-            found: true,
-            ledgers_remaining,
-            releasable,
+            },
         }
     }
 
@@ -264,10 +261,22 @@ impl PrizeRouterV2Contract {
 
         let admin: Option<Address> = env.storage().instance().get(&DataKey::Admin);
         let q_len = Self::queue_length(env.clone());
-        let delay = env.storage().instance().get(&DataKey::DelayLedgers).unwrap_or(DEFAULT_DELAY_LEDGERS);
-        let threshold = env.storage().instance().get(&DataKey::PressureThreshold).unwrap_or(DEFAULT_PRESSURE_THRESHOLD);
+        let delay = env
+            .storage()
+            .instance()
+            .get(&DataKey::DelayLedgers)
+            .unwrap_or(DEFAULT_DELAY_LEDGERS);
+        let threshold = env
+            .storage()
+            .instance()
+            .get(&DataKey::PressureThreshold)
+            .unwrap_or(DEFAULT_PRESSURE_THRESHOLD);
         let slippage = Self::fee_slippage(env.clone());
-        let is_paused = env.storage().instance().get(&DataKey::Paused).unwrap_or(false);
+        let is_paused = env
+            .storage()
+            .instance()
+            .get(&DataKey::Paused)
+            .unwrap_or(false);
 
         RoutingPathsSummary {
             is_initialized: true,

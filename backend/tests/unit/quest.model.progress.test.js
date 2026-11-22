@@ -192,14 +192,26 @@ describe('QuestModel.recordDailyLogin', () => {
   });
 
   test('a next-day login extends the streak', async () => {
-    await seedRow({ quest_id: 2, progress: 1, claimed: true, streak: 3, updated_at: startOfUtcDay(-1) });
+    await seedRow({
+      quest_id: 2,
+      progress: 1,
+      claimed: true,
+      streak: 3,
+      updated_at: startOfUtcDay(-1),
+    });
 
     const row = await QuestModel.recordDailyLogin(USER_ID);
     expect(row.streak).toBe(4);
   });
 
   test('a longer gap resets the streak to one', async () => {
-    await seedRow({ quest_id: 2, progress: 1, claimed: true, streak: 9, updated_at: startOfUtcDay(-3) });
+    await seedRow({
+      quest_id: 2,
+      progress: 1,
+      claimed: true,
+      streak: 9,
+      updated_at: startOfUtcDay(-3),
+    });
 
     const row = await QuestModel.recordDailyLogin(USER_ID);
     expect(row.streak).toBe(1);

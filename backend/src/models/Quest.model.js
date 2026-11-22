@@ -65,11 +65,13 @@ const QuestModel = {
    * @param {number} userId
    * @param {string} questSlug
    * @param {number} [delta=1]
+   * @param {object} [trx] - optional Knex transaction to join (#1580)
    * @returns {Promise<object|null>}
    */
-  async recordProgress(userId, questSlug, delta = 1) {
+  async recordProgress(userId, questSlug, delta = 1, trx) {
+    const database = trx || db;
     try {
-      const quest = await db('quests').where({ quest_id: questSlug }).first();
+      const quest = await database('quests').where({ quest_id: questSlug }).first();
       if (!quest) return null;
 
       const target = quest.target;
@@ -77,24 +79,31 @@ const QuestModel = {
 
       /*
        * One statement, so two resolutions that overlap can never read the
-       * same starting progress. `user_quests.*` refers to the pre-update row
+       * same starting progress. user_quests.* refers to the pre-update row
        * inside ON CONFLICT, which is what makes the streak transition safe:
        * only the call that actually crosses the target increments it.
-       * `claimed` is deliberately left out of the merge: it means the reward
+       * claimed is deliberately left out of the merge: it means the reward
        * was actually settled by a separate payout flow, so progress tracking
        * must never set it (#1588). CASE rather than LEAST keeps this portable
        * to the SQLite test DB.
        */
-      const progressExpr = db.raw(
-        'CASE WHEN ?? + ? < ? THEN ?? + ? ELSE ? END',
-        ['user_quests.progress', delta, target, 'user_quests.progress', delta, target],
-      );
-      const justCompletedExpr = db.raw(
-        'CASE WHEN ?? < ? AND ?? + ? >= ? THEN 1 ELSE 0 END',
-        ['user_quests.progress', target, 'user_quests.progress', delta, target],
-      );
+      const progressExpr = database.raw('CASE WHEN ?? + ? < ? THEN ?? + ? ELSE ? END', [
+        'user_quests.progress',
+        delta,
+        target,
+        'user_quests.progress',
+        delta,
+        target,
+      ]);
+      const justCompletedExpr = database.raw('CASE WHEN ?? < ? AND ?? + ? >= ? THEN 1 ELSE 0 END', [
+        'user_quests.progress',
+        target,
+        'user_quests.progress',
+        delta,
+        target,
+      ]);
 
-      const rows = await db('user_quests')
+      const rows = await database('user_quests')
         .insert({
           user_id: userId,
           quest_id: quest.id,
@@ -102,13 +111,13 @@ const QuestModel = {
           // Completion is not settlement; see #1588.
           claimed: false,
           streak: initial >= target ? 1 : 0,
-          updated_at: db.fn.now(),
+          updated_at: database.fn.now(),
         })
         .onConflict(['user_id', 'quest_id'])
         .merge({
           progress: progressExpr,
-          streak: db.raw('?? + ?', ['user_quests.streak', justCompletedExpr]),
-          updated_at: db.fn.now(),
+          streak: database.raw('?? + ?', ['user_quests.streak', justCompletedExpr]),
+          updated_at: database.fn.now(),
         })
         .returning('*');
       return rows[0];
@@ -142,16 +151,13 @@ const QuestModel = {
       const yesterdayStart = startOfUtcDay(new Date(now.getTime() - 24 * 60 * 60 * 1000));
       const initial = Math.min(1, quest.target);
 
-      const streakExpr = db.raw(
-        'CASE WHEN ?? >= ? AND ?? < ? THEN ?? + 1 ELSE 1 END',
-        [
-          'user_quests.updated_at',
-          yesterdayStart,
-          'user_quests.updated_at',
-          todayStart,
-          'user_quests.streak',
-        ],
-      );
+      const streakExpr = db.raw('CASE WHEN ?? >= ? AND ?? < ? THEN ?? + 1 ELSE 1 END', [
+        'user_quests.updated_at',
+        yesterdayStart,
+        'user_quests.updated_at',
+        todayStart,
+        'user_quests.streak',
+      ]);
 
       const rows = await db('user_quests')
         .insert({

@@ -8,7 +8,7 @@ fn setup(env: &Env) -> (ReserveAuctionClient<'_>, Address, Address, Address) {
     let admin = Address::generate(env);
     let seller = Address::generate(env);
     let bidder = Address::generate(env);
-    let contract_id = env.register_contract(None, ReserveAuction);
+    let contract_id = env.register(ReserveAuction, ());
     let client = ReserveAuctionClient::new(env, &contract_id);
     client.init(&admin);
     (client, admin, seller, bidder)
@@ -33,7 +33,7 @@ fn test_auction_snapshot_and_settlement_happy_path() {
     assert_eq!(live_snapshot.phase, AuctionPhase::Live);
     assert!(live_snapshot.reserve_met);
 
-    env.ledger().set_sequence_number(11);
+    env.ledger().with_mut(|li| li.sequence_number = 11);
     let settlement = client.settle_auction(&seller, &auction_id);
     assert!(settlement.reserve_met);
     assert_eq!(settlement.winner, Some(bidder));
@@ -100,4 +100,16 @@ fn test_pause_blocks_bid_workflow() {
 
     let result = client.try_place_bid(&bidder, &auction_id, &75);
     assert_eq!(result, Err(Ok(Error::ContractPaused)));
+}
+
+#[test]
+fn test_create_auction_requires_seller_authorization() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, _admin, seller, _bidder) = setup(&env);
+    let asset_label = String::from_str(&env, "vip-seat");
+
+    env.mock_auths(&[]);
+    let result = client.try_create_auction(&seller, &asset_label, &50, &0, &20);
+    assert!(result.is_err());
 }

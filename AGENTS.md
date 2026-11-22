@@ -76,7 +76,7 @@ something *look* finished that wasn't. These rules are not optional.
 
 | Path | What it is | Tooling |
 |---|---|---|
-| `contracts/` | Soroban smart contracts. **One Cargo workspace** (`contracts/Cargo.toml`) with an explicit `members` list and an `exclude` list of crates that don't build/lint yet. Source-backed membership and `#[test]` counts are generated into [`contracts/STATUS.md`](contracts/STATUS.md) by `python3 scripts/contract_inventory.py` (`--check` verifies it is current); counts are not a security sign-off. | Rust stable (see `rust-toolchain.toml`; CI pins 1.91.0), `cargo`, `stellar` CLI |
+| `contracts/` | Soroban smart contracts. **One Cargo workspace** (`contracts/Cargo.toml`) with an explicit `members` list and an `exclude` list of crates that don't build/lint yet. Source-backed membership and `#[test]` counts are generated into [`contracts/STATUS.md`](contracts/STATUS.md) by `python3 scripts/contract_inventory.py` (`--check` verifies it is current); counts are not a security sign-off. | Rust toolchain pinned in `rust-toolchain.toml`, `cargo`, `stellar` CLI |
 | `backend/` | Express API, **CommonJS** (`require`/`module.exports`). Layers: `src/routes/` → `src/controllers/` → `src/services/` → `src/models/` (Knex). Mounted under `/api`. | npm (own `package-lock.json`, *not* part of the pnpm workspace), Jest + Supertest |
 | `apps/web/` | The live frontend: **Next.js App Router** (`app/`) + Tailwind v4 + shadcn primitives. Shared code in `src/`. Package name `@stellarcade/web`. | pnpm workspace, Vitest, Playwright (`e2e/`) |
 | `packages/tokens/` | Design tokens consumed by `apps/web` (`@stellarcade/tokens`). | pnpm workspace |

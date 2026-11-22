@@ -7,8 +7,8 @@ mod types;
 use soroban_sdk::{contract, contractimpl, contracttype, Address, Env};
 
 pub use types::{
-    ClaimSaturation, DropAllocationSnapshot, DropClaimWindowAccessor, DropConfigInput,
-    DropRecord, DropWindowSnapshot, DropWindowState,
+    ClaimSaturation, DropAllocationSnapshot, DropClaimWindowAccessor, DropConfigInput, DropRecord,
+    DropWindowSnapshot, DropWindowState,
 };
 
 #[contracttype]
@@ -241,14 +241,9 @@ impl CreatorDrops {
 
         // In claim window = drop has closed (state Closed or SoldOut or past ends_at)
         // and we haven't exceeded claim_window_end yet.
-        let in_claim_window =
-            now > drop.ends_at && now <= claim_window_end && !drop.paused;
+        let in_claim_window = now > drop.ends_at && now <= claim_window_end && !drop.paused;
 
-        let secs_until_window_end = if now <= claim_window_end {
-            claim_window_end - now
-        } else {
-            0
-        };
+        let secs_until_window_end = claim_window_end.saturating_sub(now);
 
         DropClaimWindowAccessor {
             drop_id,

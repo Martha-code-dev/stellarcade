@@ -138,8 +138,46 @@ pub fn rolling_history_snapshot(env: Env) -> RollingHistorySnapshot
 
 `RollingHistorySnapshot`
 
+### `cancel_stale_roll`
+Cancel a roll whose randomness was never fulfilled and refund the full wager to the player.  Only the game's player may call this, and only once RefundTimeoutLedgers ledgers have passed since placed_at_ledger while the RNG request is still unfulfilled. If the RNG result is already available the call fails with RefundNotYetAvailable; the game must be settled with resolve_roll instead.
+
+```rust
+pub fn cancel_stale_roll(env: Env, player: Address, game_id: u64) -> Result<(), Error>
+```
+
+#### Parameters
+
+| Name | Type |
+|------|------|
+| `env` | `Env` |
+| `player` | `Address` |
+| `game_id` | `u64` |
+
+#### Return Type
+
+`Result<(), Error>`
+
+### `set_refund_timeout_ledgers`
+Admin-only update for refund timeout ledgers.
+
+```rust
+pub fn set_refund_timeout_ledgers(env: Env, admin: Address, timeout: u32) -> Result<(), Error>
+```
+
+#### Parameters
+
+| Name | Type |
+|------|------|
+| `env` | `Env` |
+| `admin` | `Address` |
+| `timeout` | `u32` |
+
+#### Return Type
+
+`Result<(), Error>`
+
 ### `cooldown_window`
-Per-player cooldown window accessor. Returns whether the player is currently in a cooldown period after their last roll. `cooldown_secs` is the configured cooldown window (DEFAULT_COOLDOWN_SECS = 30s).
+Per-player cooldown window accessor. Returns whether the player is currently in a cooldown period after their last roll. cooldown_secs is the configured cooldown window (DEFAULT_COOLDOWN_SECS = 30s).
 
 ```rust
 pub fn cooldown_window(env: Env, player: Address) -> CooldownWindow

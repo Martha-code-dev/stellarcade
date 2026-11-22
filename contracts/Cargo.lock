@@ -1864,6 +1864,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "stellarcade-achievements"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "stellarcade-affiliate-ledger"
 version = "0.1.0"
 dependencies = [
@@ -1970,6 +1977,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "stellarcade-challenge-ladder"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "stellarcade-clan-seasons"
 version = "0.1.0"
 dependencies = [
@@ -1993,6 +2007,13 @@ dependencies = [
 
 [[package]]
 name = "stellarcade-combo-rewards"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellarcade-comprehensive-test-suite"
 version = "0.1.0"
 dependencies = [
  "soroban-sdk",
@@ -2031,6 +2052,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "stellarcade-contract-interaction-library"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "stellarcade-contract-metadata-registry"
 version = "0.1.0"
 dependencies = [
@@ -2052,6 +2080,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "stellarcade-contract-upgrade-timelock"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellarcade-creator-drops"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "stellarcade-creator-escrow"
 version = "0.1.0"
 dependencies = [
@@ -2066,6 +2108,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "stellarcade-creator-vaults"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellarcade-cross-chain-bridge"
+version = "0.1.0"
+dependencies = [
+ "ed25519-dalek",
+ "rand",
+ "soroban-sdk",
+ "stellarcade-shared",
+]
+
+[[package]]
 name = "stellarcade-cross-contract-call-guard"
 version = "0.1.0"
 dependencies = [
@@ -2074,6 +2133,13 @@ dependencies = [
 
 [[package]]
 name = "stellarcade-cross-contract-handler"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellarcade-daily-challenges"
 version = "0.1.0"
 dependencies = [
  "soroban-sdk",
@@ -2352,7 +2418,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "stellarcade-prize-router-v2"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "stellarcade-prize-streamer"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellarcade-profile-perks"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellarcade-quest-ledger-v2"
 version = "0.1.0"
 dependencies = [
  "soroban-sdk",
@@ -2366,7 +2453,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "stellarcade-queue-rewards"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellarcade-raffle-engine"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "stellarcade-random-generator"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellarcade-rank-rewards"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellarcade-referral-quests"
 version = "0.1.0"
 dependencies = [
  "soroban-sdk",
@@ -2387,6 +2502,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "stellarcade-reserve-auction"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "stellarcade-reserve-manager"
 version = "0.1.0"
 dependencies = [
@@ -2395,6 +2517,13 @@ dependencies = [
 
 [[package]]
 name = "stellarcade-revenue-split"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellarcade-reward-bridges"
 version = "0.1.0"
 dependencies = [
  "soroban-sdk",
@@ -2422,6 +2551,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "stellarcade-reward-unlocker"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "stellarcade-reward-vesting"
 version = "0.1.0"
 dependencies = [
@@ -2437,6 +2573,20 @@ dependencies = [
 
 [[package]]
 name = "stellarcade-round-finalizer"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellarcade-round-vouchers"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellarcade-season-rewards-vault"
 version = "0.1.0"
 dependencies = [
  "soroban-sdk",
@@ -2486,6 +2636,27 @@ dependencies = [
 
 [[package]]
 name = "stellarcade-sponsorship-ledger"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellarcade-squad-match"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellarcade-squad-rewards"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellarcade-squad-roster"
 version = "0.1.0"
 dependencies = [
  "soroban-sdk",
@@ -2583,6 +2754,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "stellarcade-trivia-game"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellarcade-upgrade-mechanism"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "stellarcade-vault-claims"
 version = "0.1.0"
 dependencies = [
@@ -2612,6 +2797,20 @@ dependencies = [
 
 [[package]]
 name = "stellarcade-voucher-minter"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellarcade-wallet-claims-v2"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
+name = "stellarcade-wallet-reserves"
 version = "0.1.0"
 dependencies = [
  "soroban-sdk",

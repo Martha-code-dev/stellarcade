@@ -312,7 +312,7 @@ describe("GameLobby", () => {
     );
   });
 
-  it("queue-state mini panel shows offline when no active games are present", async () => {
+  it("queue-state mini panel reports unavailable when no queue telemetry is present", async () => {
     (ApiClient as any).prototype.getGames.mockResolvedValue({
       success: true,
       data: [],
@@ -324,10 +324,48 @@ describe("GameLobby", () => {
       expect(screen.getByTestId("lobby-queue-mini-panel")).toBeInTheDocument();
     });
 
-    expect(screen.getByTestId("lobby-queue-mini-panel-health")).toHaveAttribute(
-      "data-tone",
-      "neutral",
-    );
+    const health = screen.getByTestId("lobby-queue-mini-panel-health");
+    expect(health).toHaveAttribute("data-tone", "neutral");
+    expect(health).toHaveTextContent("Unavailable");
+  });
+
+  it("does not derive queue population from catalog length", async () => {
+    (ApiClient as any).prototype.getGames.mockResolvedValue({
+      success: true,
+      data: [
+        { id: "g1", name: "Game One", status: "active", wager: 25 },
+        { id: "g2", name: "Game Two", status: "active", wager: 10 },
+        { id: "g3", name: "Game Three", status: "active", wager: 5 },
+      ],
+    });
+
+    render(<GameLobby />);
+
+    const summary = await screen.findByTestId("lobby-queue-summary");
+    // Three active games must not imply twelve players or fixed 95s/70s waits.
+    expect(summary).toHaveTextContent("Unavailable");
+    expect(summary).not.toHaveTextContent("12");
+    expect(summary).not.toHaveTextContent("95s");
+    expect(summary).not.toHaveTextContent("70s");
+  });
+
+  it("leaves arena participation empty instead of estimating from the catalog", async () => {
+    (ApiClient as any).prototype.getGames.mockResolvedValue({
+      success: true,
+      data: [
+        { id: "g1", name: "Game One", status: "active", wager: 25 },
+        { id: "g2", name: "Game Two", status: "active", wager: 10 },
+      ],
+    });
+
+    render(<GameLobby />);
+
+    const card = await screen.findByTestId("lobby-reward-trend-arena-participation");
+    expect(
+      screen.getByTestId("lobby-reward-trend-arena-participation-empty"),
+    ).toBeInTheDocument();
+    expect(card).not.toHaveTextContent(/players/i);
+    expect(card).not.toHaveTextContent("8");
   });
 
   it("renders compact expandable stats and reward trend fallback when no games are loaded", async () => {

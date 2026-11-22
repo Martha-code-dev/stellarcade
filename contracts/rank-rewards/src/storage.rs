@@ -6,7 +6,9 @@ use crate::{
 };
 
 pub fn get_bracket(env: &Env, bracket_id: u32) -> Option<BracketConfig> {
-    env.storage().persistent().get(&DataKey::Bracket(bracket_id))
+    env.storage()
+        .persistent()
+        .get(&DataKey::Bracket(bracket_id))
 }
 
 pub fn set_bracket(env: &Env, bracket: &BracketConfig) {

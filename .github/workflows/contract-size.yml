@@ -14,9 +14,13 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: 1.91.0
-          targets: wasm32v1-none
+
+      - name: Print Rust toolchain versions
+        run: |
+          rustc -Vv
+          cargo -V
+          rustup show active-toolchain
+        working-directory: ./contracts
 
       - name: Cache Cargo
         uses: actions/cache@v4

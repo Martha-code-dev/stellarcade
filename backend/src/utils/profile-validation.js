@@ -19,8 +19,12 @@ const problem = (message, code, statusCode = 400) => ({ message, code, statusCod
 
 /** Wallet identities must be real Stellar public keys, never sentinel rows. */
 function validateWalletAddress(value) {
-  if (value === undefined || value === null || value === '' ||
-      (typeof value === 'string' && !value.trim())) {
+  if (
+    value === undefined ||
+    value === null ||
+    value === '' ||
+    (typeof value === 'string' && !value.trim())
+  ) {
     return problem('walletAddress is required.', 'INVALID_REQUEST');
   }
   if (typeof value !== 'string') {
@@ -64,7 +68,7 @@ function validateUsernameValue(value, { required = false } = {}) {
   if (name.length < USERNAME_MIN || name.length > USERNAME_MAX) {
     return problem(
       `Username must be ${USERNAME_MIN}-${USERNAME_MAX} characters.`,
-      'INVALID_USERNAME',
+      'INVALID_USERNAME'
     );
   }
   if (!USERNAME_PATTERN.test(name)) {

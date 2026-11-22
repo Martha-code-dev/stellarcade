@@ -1,4 +1,3 @@
-#![cfg(test)]
 use super::*;
 use soroban_sdk::testutils::{Address as _, Ledger};
 use soroban_sdk::Env;
@@ -6,7 +5,7 @@ use soroban_sdk::Env;
 fn setup() -> (Env, CreatorVaultsClient<'static>) {
     let env = Env::default();
     env.mock_all_auths();
-    let contract_id = env.register_contract(None, CreatorVaults);
+    let contract_id = env.register(CreatorVaults, ());
     let client = CreatorVaultsClient::new(&env, &contract_id);
     (env, client)
 }
@@ -169,4 +168,29 @@ fn depletion_gap_accessor_missing_vault_returns_zeroed() {
     assert_eq!(gap.unlockable_amount, 0);
     assert_eq!(gap.locked_remaining, 0);
     assert_eq!(gap.depletion_bps, 0);
+}
+
+/// Regression for the `saturating_sub` in `unlock_readiness`: the countdown
+/// is exact before unlock, exactly zero at the boundary, and stays zero (no
+/// underflow) arbitrarily far past it.
+#[test]
+fn unlock_readiness_countdown_never_underflows() {
+    let (env, client) = setup();
+    let alice = Address::generate(&env);
+    client.deposit(&alice, &1_000, &100);
+
+    env.ledger().with_mut(|li| li.timestamp = 99);
+    let just_before = client.unlock_readiness(&alice);
+    assert_eq!(just_before.seconds_until_unlock, 1);
+    assert!(!just_before.is_unlockable);
+
+    env.ledger().with_mut(|li| li.timestamp = 100);
+    let at_boundary = client.unlock_readiness(&alice);
+    assert_eq!(at_boundary.seconds_until_unlock, 0);
+    assert!(at_boundary.is_unlockable);
+
+    env.ledger().with_mut(|li| li.timestamp = u64::MAX);
+    let far_past = client.unlock_readiness(&alice);
+    assert_eq!(far_past.seconds_until_unlock, 0);
+    assert!(far_past.is_unlockable);
 }

@@ -1,11 +1,10 @@
 const crypto = require('crypto');
+const { reserveReplayKey } = require('../services/webhook-replay');
 
 const DEFAULT_TOLERANCE_SECONDS = 300;
 const SIGNATURE_HEADER = 'x-webhook-signature';
 const TIMESTAMP_HEADER = 'x-webhook-timestamp';
 const SIGNATURE_SCHEME = 'v1';
-
-const seenSignatures = new Map();
 
 const getToleranceMs = () => {
   const configured = Number(process.env.WEBHOOK_SIGNATURE_TOLERANCE_SEC);
@@ -48,15 +47,7 @@ const timingSafeCompare = (a, b) => {
   return crypto.timingSafeEqual(aBuffer, bBuffer);
 };
 
-const purgeReplayCache = (nowMs, toleranceMs) => {
-  for (const [key, seenAt] of seenSignatures.entries()) {
-    if (nowMs - seenAt > toleranceMs) {
-      seenSignatures.delete(key);
-    }
-  }
-};
-
-const webhookSignature = (req, res, next) => {
+const webhookSignature = async (req, res, next) => {
   const secret = process.env.WEBHOOK_SIGNING_SECRET;
   if (!secret) {
     return res.status(500).json({
@@ -96,15 +87,6 @@ const webhookSignature = (req, res, next) => {
     });
   }
 
-  purgeReplayCache(nowMs, toleranceMs);
-  const replayKey = `${timestamp}.${signature}`;
-  if (seenSignatures.has(replayKey)) {
-    return res.status(403).json({
-      error: 'Webhook Replay Detected',
-      message: 'This webhook payload has already been processed.',
-    });
-  }
-
   const rawBody = getRawBody(req);
   const payload = Buffer.concat([Buffer.from(`${timestamp}.`), rawBody]);
   const computed = crypto.createHmac('sha256', secret).update(payload).digest('hex');
@@ -116,7 +98,19 @@ const webhookSignature = (req, res, next) => {
     });
   }
 
-  seenSignatures.set(replayKey, nowMs);
+  // Reserve only after the signature is verified. A bad signature or an
+  // expired timestamp must never consume the replay slot for a later, valid
+  // delivery of the same event. The reservation is atomic in Redis so two
+  // instances cannot both accept the same signed payload.
+  const replayKey = `${timestamp}.${signature}`;
+  const reserved = await reserveReplayKey(replayKey, toleranceMs);
+  if (!reserved) {
+    return res.status(403).json({
+      error: 'Webhook Replay Detected',
+      message: 'This webhook payload has already been processed.',
+    });
+  }
+
   return next();
 };
 

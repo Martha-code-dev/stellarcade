@@ -1,5 +1,3 @@
-#![cfg(test)]
-
 use super::*;
 use soroban_sdk::{
     testutils::Address as _,
@@ -374,6 +372,30 @@ fn test_full_lifecycle() {
     let state = client.get_pool_state();
     assert_eq!(state.available, 1_000);
     assert_eq!(state.reserved, 0);
+}
+
+#[test]
+fn test_reservations_conserve_funds_across_games() {
+    let env = Env::default();
+    let (client, admin, funder, token_addr) = setup(&env);
+    let tc = token_client(&env, &token_addr);
+    let check = |available: i128, reserved: i128| {
+        let state = client.get_pool_state();
+        assert_eq!((state.available, state.reserved), (available, reserved));
+        assert_eq!(tc.balance(&client.address), available + reserved);
+    };
+    client.fund(&funder, &1_000);
+    client.reserve(&admin, &1, &600);
+    client.reserve(&admin, &2, &400);
+    // Reserved liabilities can't be spent by another game or a new reservation.
+    assert!(client.try_payout(&admin, &funder, &1, &601).is_err());
+    assert!(client.try_reserve(&admin, &3, &1).is_err());
+    check(0, 1_000);
+    client.payout(&admin, &funder, &1, &250);
+    client.release(&admin, &1, &350); // refund game 1's remainder
+    check(350, 400);
+    client.payout(&admin, &funder, &2, &400);
+    check(350, 0);
 }
 
 // ------------------------------------------------------------------

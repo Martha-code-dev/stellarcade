@@ -7,7 +7,8 @@ mod types;
 mod test;
 
 use crate::storage::{get_config, get_match, set_config, set_match};
-use crate::types::{MatchConfig, MatchSnapshot, MatchState, MatchStatus, Squad};
+use crate::types::{MatchConfig, MatchSnapshot, MatchState, MatchStatus};
+pub use crate::types::{OptionalMatchConfig, OptionalMatchState};
 use soroban_sdk::{contract, contracterror, contractevent, contractimpl, Address, Env, Vec};
 
 #[contracterror]
@@ -23,7 +24,6 @@ pub enum Error {
 
 #[contractevent]
 pub struct MatchCreated {
-    #[topic]
     pub match_id: u32,
     pub creator: Address,
 }
@@ -93,8 +93,8 @@ impl SquadMatch {
         let match_state = get_match(&env, match_id);
 
         MatchSnapshot {
-            config,
-            match_state,
+            config: config.into(),
+            match_state: match_state.into(),
             timestamp: env.ledger().timestamp(),
         }
     }

@@ -34,7 +34,7 @@ describe('migrateProfiles', () => {
   test('inserts a file record for a wallet missing from the database', async () => {
     const report = await migrateProfiles(
       { [WALLET_A]: { address: WALLET_A, username: 'nova_runner', ageConfirmedAt: AGE } },
-      db,
+      db
     );
 
     expect(report.inserted).toEqual([{ address: WALLET_A, username: 'nova_runner' }]);
@@ -52,7 +52,7 @@ describe('migrateProfiles', () => {
 
     const report = await migrateProfiles(
       { [WALLET_A]: { address: WALLET_A, username: 'file_name', ageConfirmedAt: AGE } },
-      db,
+      db
     );
 
     const [row] = await db('users').where({ wallet_address: WALLET_A });
@@ -67,7 +67,7 @@ describe('migrateProfiles', () => {
 
     const report = await migrateProfiles(
       { [WALLET_A]: { address: WALLET_A, username: 'TAKEN_NAME', ageConfirmedAt: AGE } },
-      db,
+      db
     );
 
     expect(report.collisions).toEqual([
@@ -84,7 +84,7 @@ describe('migrateProfiles', () => {
         [WALLET_B]: { address: WALLET_B, username: 'bad@name' },
         [WALLET_C]: { address: WALLET_C, username: 'valid_name' },
       },
-      db,
+      db
     );
 
     expect(report.skipped.map((entry) => entry.reason)).toEqual([

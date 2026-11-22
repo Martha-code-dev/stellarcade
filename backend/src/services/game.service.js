@@ -7,6 +7,12 @@ const gameService = {
   /**
    * Lists games for the public catalog.
    *
+   * The catalog describes the games that exist, not how many players are on
+   * them. There is no live player-count feed behind this endpoint, so every
+   * entry reports `players: null` (unknown) rather than a fabricated number. A
+   * measured count would be a number, and a measured `0` would stay `0`; the
+   * two are deliberately distinct.
+   *
    * @returns {Promise<{ games: Array }>}
    */
   listGames: async () => {
@@ -20,7 +26,7 @@ const gameService = {
           description:
             'Instant 50/50 provably fair on-chain duel. Double your stake on heads or tails.',
           contract: 'coin-flip',
-          players: 142,
+          players: null,
           category: 'PVP / Duel',
         },
         {
@@ -31,7 +37,7 @@ const gameService = {
           description:
             'Multi-sided dice arena backed by cryptographic seed commitments and Soroban RNG.',
           contract: 'random-generator',
-          players: 89,
+          players: null,
           category: 'Table / RNG',
         },
         {
@@ -42,7 +48,7 @@ const gameService = {
           description:
             'High-roller reserve pool with accumulated yields and on-chain payout splits.',
           contract: 'prize-pool',
-          players: 37,
+          players: null,
           category: 'Jackpot / Pool',
         },
         {
@@ -53,7 +59,7 @@ const gameService = {
           description:
             'Commit-reveal PvP hand battle with cryptographic dispute resolution on Soroban.',
           contract: 'rock-paper-scissors',
-          players: 64,
+          players: null,
           category: 'PVP / Duel',
         },
         {
@@ -64,7 +70,7 @@ const gameService = {
           description:
             'Minefield tile clearance with multi-signature stake escrow and cash-out checkpoints.',
           contract: 'minesweeper-escrow',
-          players: 48,
+          players: null,
           category: 'Strategy / Escrow',
         },
       ],

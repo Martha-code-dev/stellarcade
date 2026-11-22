@@ -200,5 +200,84 @@ describe('Audit Log Service', () => {
         },
       });
     });
+
+    test('redacts Authorization and private_key variants regardless of case or separators', async () => {
+      await audit.log({
+        actor: 'user-999',
+        action: 'wallet.deposit',
+        target: 'user-999',
+        metadata: {
+          Authorization: 'Bearer secret-token',
+          authorization: 'Bearer secret-token',
+          private_key: 'raw-private-key',
+          'private-key': 'raw-private-key',
+          privateKey: 'raw-private-key',
+          PRIVATE_KEY: 'raw-private-key',
+          access_token: 'access-token',
+          refreshToken: 'refresh-token',
+        },
+      });
+
+      const metadata = JSON.parse(mockInsert.mock.calls[0][0].metadata);
+      for (const value of Object.values(metadata)) {
+        expect(value).toBe('[REDACTED]');
+      }
+      expect(JSON.stringify(metadata)).not.toContain('secret-token');
+      expect(JSON.stringify(metadata)).not.toContain('raw-private-key');
+    });
+
+    test('redacts sensitive keys inside nested objects and arrays', async () => {
+      await audit.log({
+        actor: 'user-999',
+        action: 'wallet.withdraw',
+        target: 'user-999',
+        metadata: {
+          amount: 100,
+          request: {
+            headers: [{ Authorization: 'Bearer nested-secret' }],
+            credentials: {
+              private_key: 'nested-private-key',
+              publicKey: 'public-value',
+            },
+          },
+        },
+      });
+
+      const metadata = JSON.parse(mockInsert.mock.calls[0][0].metadata);
+      expect(metadata).toEqual({
+        amount: 100,
+        request: {
+          headers: [{ Authorization: '[REDACTED]' }],
+          credentials: {
+            private_key: '[REDACTED]',
+            publicKey: 'public-value',
+          },
+        },
+      });
+      expect(JSON.stringify(metadata)).not.toContain('nested-secret');
+      expect(JSON.stringify(metadata)).not.toContain('nested-private-key');
+    });
+
+    test('keeps non-sensitive keys that merely contain a sensitive substring', async () => {
+      await audit.log({
+        actor: 'user-999',
+        action: 'game.play',
+        target: 'coin-flip',
+        metadata: {
+          author: 'alice',
+          signatureCount: 2,
+          tokenCount: 3,
+          publicKey: 'public-value',
+        },
+      });
+
+      const metadata = JSON.parse(mockInsert.mock.calls[0][0].metadata);
+      expect(metadata).toEqual({
+        author: 'alice',
+        signatureCount: 2,
+        tokenCount: 3,
+        publicKey: 'public-value',
+      });
+    });
   });
 });
